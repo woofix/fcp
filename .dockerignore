@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+config
+data
+state
+geo
+logs
+.venv
+**/__pycache__
+**/*.eml
+**/*.sqlite*

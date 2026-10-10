@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+config/
+data/
+state/
+geo/
+logs/
+.venv/
+__pycache__/
+*.pyc
+*.eml
+*.sqlite*
+*.mmdb
+.DS_Store

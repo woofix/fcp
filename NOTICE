@@ -1,0 +1,15 @@
+FCP — Fail2ban Control Panel
+Copyright 2026 Eric TOMAS and FCP contributors
+
+Licensed under the Apache License, Version 2.0; see LICENSE.
+The Visio Display theme adaptation is included under Apache-2.0 with the
+copyright holder's explicit authorization for this distribution.
+
+Made with Natural Earth. Embedded world boundaries are public-domain data:
+https://www.naturalearthdata.com/about/terms-of-use/
+
+Optional DB-IP Lite geolocation data are not included in this source release.
+They retain their separate CC BY 4.0 license and attribution requirements:
+https://db-ip.com/db/lite.php
+Runtime dependencies and container base-image components retain their own
+licenses. This license does not relicense those third-party components.
