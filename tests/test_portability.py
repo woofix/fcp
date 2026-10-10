@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'src'))
 SANDBOX = tempfile.TemporaryDirectory()
 os.environ.update(FCP_ADMIN_PASSWORD='test-password-longer-than-twenty',
+    FCP_AUTH_DATABASE=SANDBOX.name+'/data/auth.sqlite3',
     FCP_AUTOMATION_FILE=SANDBOX.name+'/data/automation.json',
     FCP_CONFIG=SANDBOX.name+'/config.json', FCP_FAIL2BAN_CONTAINER='isolated-f2b',
     FCP_DATABASE=SANDBOX.name+'/data/history.sqlite3', FCP_ABUSE_SETTINGS=SANDBOX.name+'/data/auxiliary.sqlite3', FCP_HTTP_LOG=SANDBOX.name+'/missing-access.log')
@@ -27,6 +28,20 @@ Path(os.environ['FCP_CONFIG']).write_text(json.dumps({'container':'isolated-f2b'
     'ssh_jails':['custom-ssh'],'sftp_container':'','http_enabled':False}))
 import runtime
 import ui
+from flask.testing import FlaskClient
+class HTTPSClient(FlaskClient):
+    def open(self, *args, **kwargs):
+        kwargs.setdefault('base_url','https://localhost')
+        return super().open(*args, **kwargs)
+ui.app.test_client_class=HTTPSClient
+
+def sign_in(client):
+    html=client.get('/login').get_data(as_text=True)
+    import re
+    csrf=re.search(r'name="csrf" value="([^"]+)"',html).group(1)
+    response=client.post('/login',data={'csrf':csrf,'username':'admin','password':'test-password-longer-than-twenty'})
+    assert response.status_code==303, response.status_code
+
 
 
 def load_script(name):
@@ -38,19 +53,21 @@ def load_script(name):
 class PortabilityTests(unittest.TestCase):
     def setUp(self):
         self.client=ui.app.test_client()
-        self.auth={'Authorization':'Basic '+base64.b64encode(b'admin:test-password-longer-than-twenty').decode()}
+        self.auth={}
+        sign_in(self.client)
 
     def test_all_routes_require_auth(self):
+        anonymous=ui.app.test_client()
         for route in ('/','/manage','/geo/status','/http/history','/admin/api'):
-            response=self.client.get(route) if route!='/admin/api' else self.client.post(route,json={'op':'overview'})
-            self.assertEqual(response.status_code,401,route)
+            response=anonymous.get(route) if route!='/admin/api' else anonymous.post(route,json={'op':'overview'})
+            self.assertEqual(response.status_code,303 if route in ('/','/manage') else 401,route)
         self.assertEqual(self.client.get('/geo/status',headers=self.auth).status_code,200)
         self.assertEqual(self.client.get('/manage',headers=self.auth).status_code,200)
 
     def test_password_required(self):
         from flask import Flask
         from security import install_auth
-        with patch.dict(os.environ,{'FCP_ADMIN_PASSWORD':''}):
+        with patch.dict(os.environ,{'FCP_ADMIN_PASSWORD':'', 'FCP_AUTH_DATABASE':SANDBOX.name+'/missing-auth.sqlite3'}):
             with self.assertRaises(RuntimeError): install_auth(Flask('missing-secret'))
 
     def test_default_disabled_and_preserved(self):

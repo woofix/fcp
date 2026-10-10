@@ -13,3 +13,6 @@ __pycache__/
 *.sqlite*
 *.mmdb
 .DS_Store
+
+# macOS resource forks
+**/._*

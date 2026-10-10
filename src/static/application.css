@@ -1,0 +1,32 @@
+/* Account forms use the same theme as the dashboard and Fail2ban administration. */
+*{box-sizing:border-box}body{margin:0}header{max-width:1600px;margin:auto}a{color:var(--accent)}header a{color:white}.application-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;padding-bottom:76px}.application-layout .card{margin:0;min-width:0}.application-layout .app-wide{grid-column:1/-1}.application-layout h2{font-size:20px;color:#312e81;margin:0 0 18px}.application-layout label{display:block;margin:14px 0 6px}.application-layout input{display:block;width:100%;margin-top:6px;min-height:46px}.application-layout button{margin:12px 0 4px}.application-layout pre{padding:16px;overflow:auto}.application-layout table{width:100%;border-collapse:collapse;font-size:13px}.application-layout td{overflow-wrap:anywhere}.application-layout code{overflow-wrap:anywhere}.application-layout .message{color:var(--text);border-color:var(--accent)}.application-layout .app-status{font-size:14px}.login-layout{max-width:640px;grid-template-columns:minmax(0,1fr)}
+@media(max-width:900px){.application-layout{grid-template-columns:minmax(0,1fr)}}
+body.with-navigation:has(main){padding:28px 28px 28px 264px}.with-navigation .display-controls .application-navigation[aria-current="page"]{background:rgba(99,102,241,.22);border-color:rgba(129,140,248,.24);color:#fff}
+@media(max-width:900px){body.with-navigation:has(main){padding:18px}.with-navigation .display-controls{margin:0 0 18px}}
+@media(max-width:600px){body.with-navigation:has(main){padding:12px}}
+
+.connection-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}.application-layout select{display:block;width:100%;margin-top:6px;min-height:46px}.application-layout fieldset{border:1px solid var(--border,#d8dbea);border-radius:12px;padding:16px;margin-top:20px}.connection-actions{display:flex;flex-wrap:wrap;gap:14px}.connection-result{margin-top:20px;padding:16px;border:1px solid var(--border,#d8dbea);border-radius:12px}.connection-result li{margin:8px 0;overflow-wrap:anywhere}[hidden]{display:none!important}
+
+/* Normalize WebKit's native selects and align the connection form controls. */
+.application-layout select{
+  -webkit-appearance:none;
+  appearance:none;
+  height:48px;
+  min-height:48px;
+  padding:11px 42px 11px 14px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'%3E%3Cpath d='m5 7 4 4 4-4' fill='none' stroke='%2342506b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 14px center;
+  line-height:24px;
+}
+.connection-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 24px;align-items:start;margin-top:24px}
+.connection-grid>label{display:flex;flex-direction:column;gap:8px;min-width:0;margin:0;font-size:14px;line-height:1.5}
+.connection-grid input,.connection-grid select{width:100%;height:48px;min-height:48px;margin:0;font-size:15px}
+.connection-grid input{padding:11px 14px;line-height:24px}
+#connection-native .connection-grid{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:12px}
+.connection-actions{align-items:center;gap:12px;margin-top:24px}
+.connection-actions button{min-height:44px;margin:0;padding:10px 18px;line-height:22px}
+.connection-actions button[value="connection_save"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.connection-actions button[value="connection_save"]:hover{background:#4338ca;border-color:#4338ca}
+@media(max-width:1100px) and (min-width:901px){.connection-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:650px){.connection-grid,#connection-native .connection-grid{grid-template-columns:minmax(0,1fr)}.connection-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}.connection-actions button{width:100%}}

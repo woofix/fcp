@@ -20,9 +20,15 @@ from concurrent.futures import ThreadPoolExecutor
 
 from runtime import settings_path, ensure_settings, load_config
 from security import install_auth
+import fail2ban_connection as f2b
 F2B_CONTAINER = load_config()['container']
 app = Flask(__name__)
+if os.environ.get('FCP_TRUST_PROXY') == '1':
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=0)
 install_auth(app)
+from i18n import install_i18n
+install_i18n(app)
 ensure_settings()
 
 try:
@@ -56,7 +62,17 @@ def geo_label(ip):
         if len(code) == 2 and code.isascii() and code.isalpha():
             flag = ''.join(chr(127397 + ord(letter)) for letter in code)
             country = flag + ' ' + (country or code)
-        return ' · '.join(part for part in (country, city) if part) or 'Localisation inconnue'
+        label = ' · '.join(part for part in (country, city) if part) or 'Localisation inconnue'
+        def english_name(part):
+            names = record.get(part, {}).get('names', {})
+            return names.get('en') or names.get('fr') or ''
+        english_country = english_name('country')
+        if len(code) == 2 and code.isascii() and code.isalpha():
+            english_country = flag + ' ' + (english_country or code)
+        english = ' · '.join(part for part in (english_country, english_name('city')) if part) or 'Unknown location'
+        from i18n import register_geo_label
+        register_geo_label(label, english)
+        return label
     except (ValueError, OSError):
         return 'Localisation inconnue'
 
@@ -393,7 +409,7 @@ BAN_MAP_HTML = '<dialog id="ban-map-dialog" aria-labelledby="ban-map-title"><div
 def dashboard():
     html = """
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -449,28 +465,7 @@ body.compact .empty-state{padding:12px}
 body.compact .table-wrap{max-height:350px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.tabs button[aria-selected="true"]{background:#3498db;color:#fff;border-color:#3498db}.card[hidden]{display:none}
 .abuse-result{white-space:normal;overflow-wrap:anywhere;max-width:280px}.abuse-result a{color:#9dcfff}
-/* FCP — thème adapté de Visio Display, Eric TOMAS; Apache-2.0 avec autorisation du détenteur des droits. */
-:root{color-scheme:light;--bg:#edf2ff;--card:rgba(255,255,255,.62);--accent:#4f46e5;--danger:#dc2626;--text:#132032;--border:#d8e1f2;--muted:#42506b;--radius:22px;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);background:var(--bg)}
-body{font-family:inherit;color:var(--text);background:radial-gradient(ellipse at 15% 0%,rgba(79,70,229,.18),transparent 55%),radial-gradient(ellipse at 95% 20%,rgba(14,165,233,.13),transparent 55%),var(--bg);padding:28px 28px 28px 264px;min-height:100vh;line-height:1.55}
-.container{max-width:1600px;margin:auto;background:transparent;box-shadow:none;overflow:visible;border-radius:0}
-.header,header{background:linear-gradient(135deg,#172554,#312e81 45%,#0f766e);border:1px solid rgba(255,255,255,.35);border-radius:24px;color:#fff;padding:30px 32px;text-align:left;box-shadow:0 18px 42px rgba(15,23,42,.12)}
-.header h1,header h1{font-weight:750;letter-spacing:-.04em;font-size:34px;margin:0 0 6px}.header p,header p{color:#dbe4ff}header a{color:#fff}
-.display-controls{position:fixed;inset:0 auto 0 0;width:236px;background:#081222;border-right:1px solid rgba(255,255,255,.08);padding:30px 16px;display:block;z-index:10;overflow:auto}
-.display-controls:before{content:'FCP';display:block;color:#eef2ff;font-size:27px;font-weight:750;letter-spacing:-.04em;padding:0 12px 4px}
-.tabs{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin-top:26px}.display-controls button{background:transparent;border:1px solid transparent;color:#95a4c7;text-align:left;padding:12px 14px;border-radius:12px;font:inherit;font-size:14px}.display-controls button:hover{background:rgba(129,140,248,.12);color:#dbe4ff}.tabs button[aria-selected="true"]{background:rgba(99,102,241,.22);border-color:rgba(129,140,248,.24);color:#fff}
-.stats-grid{padding:24px 0;gap:22px}.card{background:var(--card);border:1px solid rgba(255,255,255,.82);border-radius:var(--radius);padding:26px;box-shadow:0 14px 38px rgba(15,23,42,.09),inset 0 1px 0 rgba(255,255,255,.96);backdrop-filter:blur(30px) saturate(1.35)}
-.card h3,.section-title{color:#312e81}.note,.muted,small,.subline,.legend,.empty-state,label{color:var(--muted)}.note{font-size:13px}.subline{font-size:11px}.path code{color:#42506b}.method{color:#4f46e5}
-.metric{background:rgba(255,255,255,.56);border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 15px rgba(15,23,42,.04)}.metric strong{color:#312e81;font-weight:750}.metric small{color:var(--muted)}.metric.red{border-color:#f0bfc5}.metric.amber{border-color:#f4d8b5}
-button,a.button,.toolbar button,#geo-update{font:inherit;font-size:13px;background:rgba(255,255,255,.78);color:#312e81;border:1px solid #c5d2ea;border-radius:12px;padding:10px 16px;cursor:pointer;transition:background .18s,box-shadow .18s}
-button:hover,a.button:hover{background:#e7e9ff;box-shadow:0 4px 14px rgba(79,70,229,.12)}button:disabled{opacity:.5;cursor:default}button.danger,.ip-btn{background:#fff1f2;color:#b91c1c;border:1px solid #fecdd3}.ip-btn:hover,button.danger:hover{background:#ffe4e6}
-input,select,textarea,.toolbar input,.toolbar select{font:inherit;background:rgba(255,255,255,.78);color:var(--text);border:1px solid #c5d2ea;border-radius:12px;padding:10px 12px}input:focus,select:focus,textarea:focus{outline:3px solid rgba(79,70,229,.14);border-color:#8b8cff}button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #8b8cff;outline-offset:3px}
-pre{background:#f4f7ff;color:#132032;border:1px solid var(--border);border-radius:14px}.table-wrap{border:1px solid var(--border);border-radius:14px}th{background:#e7e9ff;color:#312e81;font-weight:650}th,td{border-bottom:1px solid var(--border);padding:13px 14px}tbody tr:nth-child(even){background:rgba(244,247,255,.68)}tbody tr:hover{background:#e7e9ff}
-.badge{background:#e7e9ff;color:#312e81;border-radius:8px}.badge.auth{background:#ffe4e6;color:#9f1239}.badge.server{background:#ede9fe;color:#5b21b6}.badge.missing{background:#fef3c7;color:#92400e}.badge.other{background:#e0f2fe;color:#075985}.abuse-result a,#geo-note a{color:#4f46e5!important}
-#geo-note{padding:20px 12px!important;margin:8px 0 0}.refresh{position:static;margin:0 0 20px auto;display:block;width:max-content;background:#4f46e5;color:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(79,70,229,.2);font-size:12px;font-weight:650}
-#administration-panel{margin-top:24px}main{max-width:1600px;padding:24px 0;margin:auto}nav{gap:8px}nav button.active{background:#4f46e5;color:#fff;border-color:#4f46e5}#message{background:#e7e9ff;color:#312e81;border:1px solid #c5d2ea;border-radius:12px}body:has(main){padding:28px}body:has(main):has(header[hidden]){padding:12px}
-@media(max-width:900px){body{padding:18px}.display-controls{position:static;width:auto;border-radius:18px;margin-top:18px;padding:14px}.display-controls:before,.display-controls:after{display:none}.tabs{flex-direction:row;margin:0;gap:6px}.display-controls button{flex:1;text-align:center;padding:10px;font-size:12px}.stats-grid{gap:16px}.header,header{padding:24px}.refresh{margin-left:auto}}
-@media(max-width:600px){body,body:has(main){padding:12px}.header h1{font-size:28px}.stats-grid{grid-template-columns:minmax(0,1fr)}.card{padding:18px;border-radius:18px}.tabs button{flex:1 1 40%}.toolbar input{min-width:0;width:100%}.header p{font-size:13px}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style><link rel="stylesheet" href="/static/theme.css"><style>
 
 /* World map, isolated from both dashboard and administration styles. */
 .metric.map-trigger{display:block;text-align:left;width:100%;color:var(--text);cursor:pointer;font:inherit}.metric.map-trigger:hover{border-color:#8b8cff;box-shadow:0 0 0 3px rgba(79,70,229,.1)}.metric.map-trigger small:after{content:' ↗';color:#4f46e5}.ip-btn.map-ip{color:#312e81;background:#e7e9ff;border-color:#c5d2ea}.map-history-link{padding:4px 8px;font-size:12px}
@@ -498,6 +493,7 @@ pre{background:#f4f7ff;color:#132032;border:1px solid var(--border);border-radiu
 <button type="button" role="tab" id="tab-history" data-tab="history" aria-selected="false">Historique</button>
 <button type="button" role="tab" id="tab-requests" data-tab="requests" aria-selected="false">Requêtes HTTP</button>
 <button type="button" role="tab" id="tab-map" data-tab="map" aria-selected="false" aria-controls="map-panel">🌐 Map Monde</button>
+<a class="application-navigation" href="/application">Administration de l’application</a>
 </div>
 </div>
 <p id="geo-note" class="note" style="padding:10px 20px;text-align:center">Pays et ville approximatifs · Opérateur et ASN : base locale facultative · DB-IP Lite, <span id="geo-version">version en cours de lecture</span> · <a href="https://db-ip.com" style="color:#9dcfff" target="_blank" rel="noopener noreferrer">IP Geolocation by DB-IP</a> · Contact abuse : recherche RDAP selon les réglages de Configuration → Automatisations et e-mails ; seule l’IP est transmise<br><button type="button" id="geo-update" style="margin-top:8px;padding:6px 12px;border-radius:6px;cursor:pointer">Mettre à jour la base</button> <span id="geo-update-status" role="status"></span></p>
@@ -507,14 +503,14 @@ pre{background:#f4f7ff;color:#132032;border:1px solid var(--border);border-radiu
 """
 
     def query_client(args):
-        return subprocess.run(["docker", "exec", F2B_CONTAINER, "fail2ban-client", *args], capture_output=True, text=True, timeout=10, check=True).stdout
+        return f2b.client(*args, timeout=10)
 
     # Four bounded readers; repeated values reuse the same future.
     try:
         server_status = query_client(("status",))
         jail_line = re.search(r"Jail list:\s*(.*)", server_status)
         jail_names = [name.strip() for name in jail_line.group(1).split(',') if name.strip()] if jail_line else []
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, ValueError, subprocess.SubprocessError):
         jail_names = []
     queries = [("ping",)]
     for jail in jail_names:
@@ -537,10 +533,12 @@ pre{background:#f4f7ff;color:#132032;border:1px solid var(--border);border-radiu
     log_text = None
     clock_now = None
     try:
-        logs = subprocess.run(["docker", "logs", "--tail", "5000", F2B_CONTAINER], capture_output=True, text=True, timeout=10, check=True)
-        log_text = logs.stdout + "\n" + logs.stderr
-        clock_result = subprocess.run(["docker", "exec", F2B_CONTAINER, "date", "+%Y-%m-%dT%H:%M:%S%z"], capture_output=True, text=True, timeout=10, check=True)
-        clock_now = datetime.strptime(clock_result.stdout.strip(), "%Y-%m-%dT%H:%M:%S%z")
+        log_text = f2b.logs(lines=5000)
+        if f2b.read()['settings']['mode']=='docker':
+            clock_result = f2b.command(['date', '+%Y-%m-%dT%H:%M:%S%z'], timeout=10)
+            clock_now = datetime.strptime(clock_result.stdout.strip(), "%Y-%m-%dT%H:%M:%S%z")
+        else:
+            clock_now = datetime.now().astimezone()
     except (subprocess.SubprocessError, OSError, ValueError):
         pass
 
@@ -586,7 +584,7 @@ pre{background:#f4f7ff;color:#132032;border:1px solid var(--border);border-radiu
     try:
         client("ping")
         html += '<div class="card suspect-card"><h3>✅ Fail2ban répond</h3><p>Le service est actif. Une liste vide signifie qu’aucun bannissement n’est en cours. Les bans levés restent visibles dans l’historique ci-dessous.</p></div>'
-    except (subprocess.SubprocessError, OSError):
+    except (subprocess.SubprocessError, OSError, ValueError):
         html += '<div class="card suspect-card"><h3>⚠️ État du service indisponible</h3><p>Impossible de confirmer que Fail2ban répond.</p></div>'
 
     for jail in jail_names:
@@ -674,7 +672,7 @@ pre{background:#f4f7ff;color:#132032;border:1px solid var(--border);border-radiu
             html += '</tbody></table></div>'
         else:
             html += '<p>Aucun événement de bannissement dans les lignes consultées.</p>'
-    except (subprocess.SubprocessError, OSError):
+    except (subprocess.SubprocessError, OSError, ValueError):
         html += '<p>⚠️ Historique indisponible.</p>'
     html += '</div>'
 
@@ -695,7 +693,7 @@ pre{background:#f4f7ff;color:#132032;border:1px solid var(--border);border-radiu
             html += '<p class="note" role="status">Rattrapage des nouvelles lignes en cours.</p>'
         if log_snapshot['truncated_line']:
             html += '<p class="note" role="status">Certaines lignes trop volumineuses ont été ignorées.</p>'
-        html += '<p class="note">Ban de 6 heures après 3 détections en 1 minute (401, 403 ou chemin suspect), hors réseaux locaux. Une requête suspecte ne signifie pas une intrusion réussie. Le code indique la réponse du proxy ; les compteurs Fail2ban repartent au redémarrage.</p>'
+        html += '<p class="note">Les seuils et la durée du ban sont ceux de la jail web active, consultables dans Configuration → Jails. Une requête suspecte ne signifie pas une intrusion réussie. Le code indique la réponse du proxy ; les compteurs Fail2ban repartent au redémarrage.</p>'
         auth_count = sum(r[5] in ('401', '403') for r in rows)
         server_count = sum(int(r[5]) >= 500 for r in rows)
         html += f'<div class="summary-strip"><div class="metric"><strong>{len(rows)}</strong><small>Requêtes à examiner</small></div><div class="metric"><strong>{ips}</strong><small>IP publiques distinctes</small></div><div class="metric red"><strong>{auth_count}</strong><small>Refus 401 / 403</small></div><div class="metric amber"><strong>{server_count}</strong><small>Erreurs serveur 5xx</small></div></div>'
@@ -709,7 +707,7 @@ pre{background:#f4f7ff;color:#132032;border:1px solid var(--border);border-radiu
             html += '</tbody></table></div>'
         else:
             html += '<div class="empty-state">' + ('En attente de la première lecture réussie du journal.' if log_snapshot['error'] else 'Aucune requête suspecte ou en erreur provenant d’Internet dans les lignes consultées.') + '</div>'
-    except (subprocess.SubprocessError, OSError):
+    except (subprocess.SubprocessError, OSError, ValueError):
         html += '<p class="note">Lecture du journal npmplus indisponible. Réessayez après actualisation.</p>'
     html += '</div>'
 
@@ -753,6 +751,7 @@ document.querySelectorAll('.http-read-time').forEach(node=>{node.textContent=new
 const displayKey='fail2ban-tabs-v1';
 let displayPrefs={compact:false,tab:'overview'};
 try{displayPrefs=JSON.parse(localStorage.getItem(displayKey))||displayPrefs;}catch(e){}
+const tabUrl=new URL(location.href);const requestedTab=tabUrl.searchParams.get('section');if(['overview','administration','detections','history','requests','map'].includes(requestedTab)){displayPrefs.tab=requestedTab;tabUrl.searchParams.delete('section');history.replaceState(null,'',tabUrl.pathname+tabUrl.search+tabUrl.hash);}
 const cards=[...document.querySelectorAll('.stats-grid > .card')];
 const groups=cards.map((card,index)=>index<__OVERVIEWCOUNT__?'overview':['detections','history','requests'][index-__OVERVIEWCOUNT__]);
 const tabButtons=[...document.querySelectorAll('[role="tab"]')];
@@ -828,10 +827,10 @@ def repeated_bans():
     with repeat_lock:
         if repeat_snapshot['expires'] > time.time() and repeat_snapshot.get('revision') == revision:
             return repeat_snapshot['counts']
-        logs = subprocess.run(['docker', 'logs', '--since', str(settings['window_hours']) + 'h', '--tail', '10000', F2B_CONTAINER], capture_output=True, text=True, timeout=10, check=True)
+        log_text = f2b.logs(lines=10000, since=str(settings['window_hours'])+'h')
         episodes = {}
         pattern = re.compile(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+.*?\[([^]]+)\] Ban (\S+)')
-        for line in (logs.stdout + '\n' + logs.stderr).splitlines():
+        for line in log_text.splitlines():
             match = pattern.search(line)
             if not match:
                 continue
@@ -859,7 +858,7 @@ def abuse_status():
         return jsonify({str(ip): {'contacts': [], 'message': 'Recherche des contacts abuse désactivée.'} for ip in ips if isinstance(ip, str)})
     try:
         repeats = repeated_bans()
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError, ValueError):
         return jsonify(error='Impossible de vérifier la récidive'), 503
     output = {}
     with abuse_lock:
@@ -1057,21 +1056,34 @@ with tempfile.TemporaryDirectory(prefix='f2b-ui-') as tmp:
 '''
 
 def admin_exec(arguments, timeout=35):
-    result = subprocess.run(['docker','exec',F2B_CONTAINER,*arguments], capture_output=True,text=True,timeout=timeout)
-    if result.returncode:
-        raise ValueError((result.stderr+'\n'+result.stdout)[-12000:])
-    return result.stdout
+    return f2b.command(arguments, timeout=timeout).stdout
 
 def admin_config(payload):
-    result = subprocess.run(['docker','exec','-i',F2B_CONTAINER,'python3','-c',CONFIG_TOOL],input=json.dumps(payload),capture_output=True,text=True,timeout=90)
-    if result.returncode:
-        raise ValueError((result.stderr+'\n'+result.stdout)[-12000:])
+    settings=f2b.read()['settings']
+    if payload.get('op') not in ('inventory','read','backups','validate'):
+        f2b.require_write()
+    if settings['mode']=='native':
+        code=__import__('pathlib').Path(__file__).with_name('native_config_tool.py').read_text()
+        payload=dict(payload,_config_dir=settings['config_dir'],_socket=settings['socket'],_backup_dir=f2b.backup_dir(settings))
+    else:
+        code=CONFIG_TOOL
+    result=f2b.command(['python3','-c',code],settings=settings,input=json.dumps(payload),timeout=90)
     return json.loads(result.stdout)
 
 def invalidate_dashboard():
     with dashboard_lock:
         dashboard_state['generation'] += 1
     dashboard_ready.set()
+
+def save_connection(settings, revision):
+    with admin_mutation_lock:
+        result=f2b.save(settings,revision)
+        with snapshot_lock: snapshots.clear()
+        with repeat_lock: repeat_snapshot['expires']=0
+        invalidate_dashboard()
+        return result
+
+app.extensions['fcp_connection_save']=save_connection
 
 def admin_jail(value):
     if not isinstance(value,str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}',value):
@@ -1256,10 +1268,10 @@ def ban_map_data():
                 continue
             active.add((jail, ip))
             records[(jail, ip)] = {'ip': ip, 'jail': jail, 'state': 'banned', 'last_event': ''}
-    logs = subprocess.run(['docker', 'logs', '--tail', '5000', F2B_CONTAINER], capture_output=True, text=True, timeout=10, check=True)
+    log_text = f2b.logs(lines=5000)
     pattern = re.compile(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+.*?\[([^]]+)\] (Ban|Unban) (\S+)')
     events = []
-    for line in (logs.stdout + '\n' + logs.stderr).splitlines():
+    for line in log_text.splitlines():
         m = pattern.search(line)
         if not m: continue
         date, jail, action, raw_ip = m.groups()
@@ -1384,9 +1396,9 @@ def administration():
             return jsonify(status=admin_exec(['fail2ban-client','status','--all']),version=admin_exec(['fail2ban-client','version']).strip(),files=admin_config({'op':'inventory'}))
         if op=='read': return jsonify(admin_config(q))
         if op=='logs':
-            result=subprocess.run(['docker','logs','--tail','300',F2B_CONTAINER],capture_output=True,text=True,timeout=10)
-            return jsonify(output=(result.stdout+'\n'+result.stderr)[-100000:])
+            return jsonify(output=f2b.logs(lines=300)[-100000:])
         if op=='backups':
+            if f2b.read()['settings']['mode']=='native': return jsonify(items=admin_config({'op':'backups'}))
             code="import pathlib,json; p=pathlib.Path('/data/backups/ui'); print(json.dumps([{'id':x.name,**json.loads((x/'manifest.json').read_text())} for x in sorted(p.iterdir(),reverse=True) if (x/'manifest.json').is_file()][:100] if p.exists() else []))"
             return jsonify(items=json.loads(admin_exec(['python3','-c',code])))
         if op=='jail':
@@ -1399,6 +1411,7 @@ def administration():
                 values=dict(zip(fields,pool.map(field,fields)))
             return jsonify(values=values,status=admin_exec(['fail2ban-client','status',jail]))
         with admin_mutation_lock:
+            if op not in ('help','validate','test','regex'): f2b.require_write()
             if op=='help': return jsonify(output=admin_exec(['fail2ban-client','--help']))
             if op=='client_command':
                 import shlex
@@ -1413,10 +1426,9 @@ def administration():
             if op=='service':
                 command=q.get('command')
                 if command not in ('start','stop','restart') or q.get('confirm')!='SERVICE': raise ValueError('Commande ou confirmation invalide')
-                r=subprocess.run(['docker',command,F2B_CONTAINER],capture_output=True,text=True,timeout=45)
-                if r.returncode: raise ValueError(r.stderr)
+                output=f2b.service(command)
                 invalidate_dashboard()
-                return jsonify(ok=True,output=r.stdout)
+                return jsonify(ok=True,output=output)
             if op in ('validate','save','delete','restore'):
                 result=admin_config(q)
                 if result.get('ok') and op!='validate': invalidate_dashboard()
@@ -1441,7 +1453,9 @@ def administration():
                 sample=q.get('sample','')
                 if not isinstance(sample,str) or len(sample)>50000: raise ValueError('Echantillon trop volumineux')
                 code="import sys,tempfile,subprocess; sample=sys.stdin.read(); f=tempfile.NamedTemporaryFile(mode='w',suffix='.log'); f.write(sample); f.flush(); r=subprocess.run(['fail2ban-regex',f.name,sys.argv[1]],capture_output=True,text=True,timeout=15); print(r.stdout+r.stderr); sys.exit(r.returncode)"
-                r=subprocess.run(['docker','exec','-i',F2B_CONTAINER,'python3','-c',code,'/etc/fail2ban/filter.d/'+name],input=sample,capture_output=True,text=True,timeout=20)
+                settings=f2b.read()['settings']
+                root=settings['config_dir'] if settings['mode']=='native' else '/etc/fail2ban'
+                r=f2b.command(['python3','-c',code,root+'/filter.d/'+name],input=sample,timeout=20,check=False)
                 return jsonify(ok=r.returncode==0,output=(r.stdout+r.stderr)[-15000:])
             else: raise ValueError('Operation inconnue')
             invalidate_dashboard()
@@ -1450,28 +1464,7 @@ def administration():
         return jsonify(error=str(error)[-12000:]),400
 
 ADMIN_HTML = r'''<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Administration Fail2ban</title><style>
-:root{color-scheme:dark;font-family:system-ui;background:#0b111b;color:#e6edf6}body{margin:0}header{padding:26px max(24px,calc((100vw - 1200px)/2));background:#132034;border-bottom:1px solid #30415a}header a{color:#92caff}h1{margin:10px 0;font-size:28px}main{max-width:1200px;margin:auto;padding:24px}nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}button,a.button{background:#23476d;color:#fff;border:1px solid #466888;border-radius:8px;padding:10px 16px;cursor:pointer;text-decoration:none}button:hover{background:#315d89}button.danger{background:#6d2835}button:disabled{opacity:.5;cursor:wait}.card{background:#131e2d;border:1px solid #30415a;padding:22px;border-radius:12px;margin:14px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}label{display:block;color:#b6c7db;margin:12px 0 6px}input,select,textarea{box-sizing:border-box;background:#0b1420;color:#e6edf6;border:1px solid #425673;border-radius:7px;padding:10px;width:100%;font:inherit}textarea.code{font-family:ui-monospace,monospace;min-height:340px;white-space:pre;tab-size:4}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1420;padding:16px;border-radius:8px;max-height:480px;overflow:auto}small,.muted{color:#a2b5cb}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row select,.row input{width:auto;flex:1;min-width:150px}#message{position:sticky;top:0;z-index:1;border-radius:8px;background:#1c3750;padding:12px;white-space:pre-wrap;max-height:260px;overflow:auto}#message:empty{display:none}.active{background:#3877b0}section[hidden]{display:none}.badge{background:#20445d;padding:4px 9px;border-radius:20px}h2{font-size:20px;margin-top:0}/* FCP — thème adapté de Visio Display, Eric TOMAS; Apache-2.0 avec autorisation du détenteur des droits. */
-:root{color-scheme:light;--bg:#edf2ff;--card:rgba(255,255,255,.62);--accent:#4f46e5;--danger:#dc2626;--text:#132032;--border:#d8e1f2;--muted:#42506b;--radius:22px;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);background:var(--bg)}
-body{font-family:inherit;color:var(--text);background:radial-gradient(ellipse at 15% 0%,rgba(79,70,229,.18),transparent 55%),radial-gradient(ellipse at 95% 20%,rgba(14,165,233,.13),transparent 55%),var(--bg);padding:28px 28px 28px 264px;min-height:100vh;line-height:1.55}
-.container{max-width:1600px;margin:auto;background:transparent;box-shadow:none;overflow:visible;border-radius:0}
-.header,header{background:linear-gradient(135deg,#172554,#312e81 45%,#0f766e);border:1px solid rgba(255,255,255,.35);border-radius:24px;color:#fff;padding:30px 32px;text-align:left;box-shadow:0 18px 42px rgba(15,23,42,.12)}
-.header h1,header h1{font-weight:750;letter-spacing:-.04em;font-size:34px;margin:0 0 6px}.header p,header p{color:#dbe4ff}header a{color:#fff}
-.display-controls{position:fixed;inset:0 auto 0 0;width:236px;background:#081222;border-right:1px solid rgba(255,255,255,.08);padding:30px 16px;display:block;z-index:10;overflow:auto}
-.display-controls:before{content:'FCP';display:block;color:#eef2ff;font-size:27px;font-weight:750;letter-spacing:-.04em;padding:0 12px 4px}
-.tabs{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin-top:26px}.display-controls button{background:transparent;border:1px solid transparent;color:#95a4c7;text-align:left;padding:12px 14px;border-radius:12px;font:inherit;font-size:14px}.display-controls button:hover{background:rgba(129,140,248,.12);color:#dbe4ff}.tabs button[aria-selected="true"]{background:rgba(99,102,241,.22);border-color:rgba(129,140,248,.24);color:#fff}
-.stats-grid{padding:24px 0;gap:22px}.card{background:var(--card);border:1px solid rgba(255,255,255,.82);border-radius:var(--radius);padding:26px;box-shadow:0 14px 38px rgba(15,23,42,.09),inset 0 1px 0 rgba(255,255,255,.96);backdrop-filter:blur(30px) saturate(1.35)}
-.card h3,.section-title{color:#312e81}.note,.muted,small,.subline,.legend,.empty-state,label{color:var(--muted)}.note{font-size:13px}.subline{font-size:11px}.path code{color:#42506b}.method{color:#4f46e5}
-.metric{background:rgba(255,255,255,.56);border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 15px rgba(15,23,42,.04)}.metric strong{color:#312e81;font-weight:750}.metric small{color:var(--muted)}.metric.red{border-color:#f0bfc5}.metric.amber{border-color:#f4d8b5}
-button,a.button,.toolbar button,#geo-update{font:inherit;font-size:13px;background:rgba(255,255,255,.78);color:#312e81;border:1px solid #c5d2ea;border-radius:12px;padding:10px 16px;cursor:pointer;transition:background .18s,box-shadow .18s}
-button:hover,a.button:hover{background:#e7e9ff;box-shadow:0 4px 14px rgba(79,70,229,.12)}button:disabled{opacity:.5;cursor:default}button.danger,.ip-btn{background:#fff1f2;color:#b91c1c;border:1px solid #fecdd3}.ip-btn:hover,button.danger:hover{background:#ffe4e6}
-input,select,textarea,.toolbar input,.toolbar select{font:inherit;background:rgba(255,255,255,.78);color:var(--text);border:1px solid #c5d2ea;border-radius:12px;padding:10px 12px}input:focus,select:focus,textarea:focus{outline:3px solid rgba(79,70,229,.14);border-color:#8b8cff}button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #8b8cff;outline-offset:3px}
-pre{background:#f4f7ff;color:#132032;border:1px solid var(--border);border-radius:14px}.table-wrap{border:1px solid var(--border);border-radius:14px}th{background:#e7e9ff;color:#312e81;font-weight:650}th,td{border-bottom:1px solid var(--border);padding:13px 14px}tbody tr:nth-child(even){background:rgba(244,247,255,.68)}tbody tr:hover{background:#e7e9ff}
-.badge{background:#e7e9ff;color:#312e81;border-radius:8px}.badge.auth{background:#ffe4e6;color:#9f1239}.badge.server{background:#ede9fe;color:#5b21b6}.badge.missing{background:#fef3c7;color:#92400e}.badge.other{background:#e0f2fe;color:#075985}.abuse-result a,#geo-note a{color:#4f46e5!important}
-#geo-note{padding:20px 12px!important;margin:8px 0 0}.refresh{position:static;margin:0 0 20px auto;display:block;width:max-content;background:#4f46e5;color:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(79,70,229,.2);font-size:12px;font-weight:650}
-#administration-panel{margin-top:24px}main{max-width:1600px;padding:24px 0;margin:auto}nav{gap:8px}nav button.active{background:#4f46e5;color:#fff;border-color:#4f46e5}#message{background:#e7e9ff;color:#312e81;border:1px solid #c5d2ea;border-radius:12px}body:has(main){padding:28px}body:has(main):has(header[hidden]){padding:12px}
-@media(max-width:900px){body{padding:18px}.display-controls{position:static;width:auto;border-radius:18px;margin-top:18px;padding:14px}.display-controls:before,.display-controls:after{display:none}.tabs{flex-direction:row;margin:0;gap:6px}.display-controls button{flex:1;text-align:center;padding:10px;font-size:12px}.stats-grid{gap:16px}.header,header{padding:24px}.refresh{margin-left:auto}}
-@media(max-width:600px){body,body:has(main){padding:12px}.header h1{font-size:28px}.stats-grid{grid-template-columns:minmax(0,1fr)}.card{padding:18px;border-radius:18px}.tabs button{flex:1 1 40%}.toolbar input{min-width:0;width:100%}.header p{font-size:13px}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+:root{color-scheme:dark;font-family:system-ui;background:#0b111b;color:#e6edf6}body{margin:0}header{padding:26px max(24px,calc((100vw - 1200px)/2));background:#132034;border-bottom:1px solid #30415a}header a{color:#92caff}h1{margin:10px 0;font-size:28px}main{max-width:1200px;margin:auto;padding:24px}nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}button,a.button{background:#23476d;color:#fff;border:1px solid #466888;border-radius:8px;padding:10px 16px;cursor:pointer;text-decoration:none}button:hover{background:#315d89}button.danger{background:#6d2835}button:disabled{opacity:.5;cursor:wait}.card{background:#131e2d;border:1px solid #30415a;padding:22px;border-radius:12px;margin:14px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}label{display:block;color:#b6c7db;margin:12px 0 6px}input,select,textarea{box-sizing:border-box;background:#0b1420;color:#e6edf6;border:1px solid #425673;border-radius:7px;padding:10px;width:100%;font:inherit}textarea.code{font-family:ui-monospace,monospace;min-height:340px;white-space:pre;tab-size:4}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1420;padding:16px;border-radius:8px;max-height:480px;overflow:auto}small,.muted{color:#a2b5cb}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row select,.row input{width:auto;flex:1;min-width:150px}#message{position:sticky;top:0;z-index:1;border-radius:8px;background:#1c3750;padding:12px;white-space:pre-wrap;max-height:260px;overflow:auto}#message:empty{display:none}.active{background:#3877b0}section[hidden]{display:none}.badge{background:#20445d;padding:4px 9px;border-radius:20px}h2{font-size:20px;margin-top:0}</style><link rel="stylesheet" href="/static/theme.css"><style>
 
 
 .grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 20px;align-items:start}.grid>div{min-width:0}.grid>div>label:first-child{min-height:3.1em;margin:0 0 8px;display:flex;align-items:flex-end;line-height:1.5}.grid input:not([type=checkbox]),.grid select{width:100%;height:46px;min-height:46px;box-sizing:border-box}.grid select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%2342506b' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}.grid small{display:block;margin-top:7px;line-height:1.45}

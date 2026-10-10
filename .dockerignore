@@ -10,3 +10,5 @@ logs
 **/__pycache__
 **/*.eml
 **/*.sqlite*
+
+**/._*

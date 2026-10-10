@@ -35,7 +35,7 @@ def save(path, value):
     temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
     temporary.replace(path)
 
-def collect(raw, allowed, now):
+def collect(raw, allowed, now, min_bans=None, since=0):
     result = {}
     start = now - int(AUTOMATION.get('window_hours',24))*3600
     for line in raw.splitlines():
@@ -52,6 +52,8 @@ def collect(raw, allowed, now):
             continue
         record = result.setdefault(str(address), {'bans': {}, 'found': 0, 'detections': []})
         if action == 'Ban':
+            if when.timestamp() < since:
+                continue
             # Duplicate lines and simultaneous jails are one episode; restored bans never match.
             episode = record['bans'].setdefault(stamp, {'time': when.timestamp(), 'jails': []})
             if jail not in episode['jails']:
@@ -60,7 +62,7 @@ def collect(raw, allowed, now):
             record['found'] += 1
             if len(record['detections']) < 50:
                 record['detections'].append({'time': when.timestamp(), 'jail': jail})
-    return {ip: record for ip, record in result.items() if len(record['bans']) >= int(AUTOMATION.get('min_bans',2))}
+    return {ip: record for ip, record in result.items() if len(record['bans']) >= int(AUTOMATION.get('min_bans',2) if min_bans is None else min_bans)}
 
 def contacts_from(record):
     contacts = set()
@@ -219,7 +221,7 @@ def evidence_text(ip, evidence):
 def eligible(record, previous, now):
     if previous.get('status') in ('submitting', 'uncertain'):
         return False
-    if previous.get('status') == 'submitted' and now - previous['submitted_at'] < int(AUTOMATION.get('cooldown_hours',24))*3600:
+    if previous.get('status') == 'submitted' and now - previous['submitted_at'] < int(AUTOMATION.get('email_cooldown_hours',AUTOMATION.get('cooldown_hours',24)))*3600:
         return False
     return max(event['time'] for event in record['bans'].values()) > previous.get('last_episode', 0)
 
@@ -299,7 +301,7 @@ def main():
             active = subprocess.run(['docker','exec',cfg['container'],'fail2ban-client','status'],capture_output=True,text=True,check=True,timeout=30).stdout
             match = re.search(r'Jail list:\s*([^\n]*)',active)
             allowed = [j.strip() for j in match[1].split(',') if j.strip()] if match else []
-        candidates = collect(logs.stdout + '\n' + logs.stderr, allowed, now)
+        candidates = collect(logs.stdout + '\n' + logs.stderr, allowed, now, min_bans=AUTOMATION.get('email_min_bans',AUTOMATION.get('min_bans',2)), since=AUTOMATION.get('email_since',0))
         status = {'checked_at': now, 'enabled': args.send, 'candidates': len(candidates), 'submitted': 0, 'skipped': 0, 'errors': [], 'results': []}
         if args.send:
             # A process killed after submission must not silently resubmit a possibly sent report.

@@ -7,8 +7,12 @@ services:
     ports:
       - "${FCP_BIND_ADDRESS:-127.0.0.1}:${FCP_PORT:-9191}:9191"
     environment: &environment
+      FCP_ALLOW_HTTP: ${FCP_ALLOW_HTTP:-0}
+      FCP_PUBLIC_URL: ${FCP_PUBLIC_URL:-}
+      FCP_ALLOWED_NETWORKS: ${FCP_ALLOWED_NETWORKS:-}
+      FCP_TRUST_PROXY: ${FCP_TRUST_PROXY:-0}
       FCP_ADMIN_USER: ${FCP_ADMIN_USER:-admin}
-      FCP_ADMIN_PASSWORD: ${FCP_ADMIN_PASSWORD:?Run python3 install.py first}
+      FCP_ADMIN_PASSWORD: ${FCP_ADMIN_PASSWORD:-}
       FCP_FAIL2BAN_CONTAINER: ${FCP_FAIL2BAN_CONTAINER:-fail2ban}
       FCP_CONTAINER: ${FCP_CONTAINER:-fcp}
       FCP_HTTP_LOG: /app/logs/access.log

@@ -1,21 +1,20 @@
 # FCP — Fail2ban Control Panel
 
-Interface web de gestion de Fail2ban : vue d’ensemble, jails, filtres, actions,
-historique, carte mondiale des IP et signalements abuse avec preuves jointes.
+[English](README.md) · [Français](README.fr.md)
 
-Cette distribution est une première version portable pour **Linux avec Docker
-Engine et Docker Compose**, utilisant un **Fail2ban existant dans Docker**.
-Elle n’installe pas Fail2ban, ne crée pas de règles de pare-feu et ne remplace
-pas sa configuration. Le fonctionnement avec Fail2ban installé directement
-sur l’hôte ou avec un moteur Docker distant n’est pas pris en charge.
+Web administration for Fail2ban: jails, filters, actions, persistent HTTP
+history, a world IP map and abuse reports with supporting evidence.
 
-## Installation
+## Install
 
-Prérequis : Python 3 pour préparer les fichiers, Docker Engine, Docker Compose,
-un conteneur Fail2ban avec `fail2ban-client`, `fail2ban-regex`, Python 3 et `date`.
-La gestion persistante des fichiers cible l’organisation de crazymax/fail2ban :
-`/data/{jail.d,filter.d,action.d}` et `/etc/fail2ban`. D’autres images doivent
-être vérifiées avant d’utiliser l’édition de configuration.
+Requires Linux, Docker Engine, Docker Compose and an existing Fail2ban
+container with `fail2ban-client`, `fail2ban-regex`, Python 3 and `date`.
+Persistent configuration editing targets crazymax/fail2ban paths:
+`/data/{jail.d,filter.d,action.d}` and `/etc/fail2ban`. Validate other images
+before editing their configuration. Native Linux Fail2ban is also supported through **Application administration →
+Fail2ban connection**, with detection, connection tests and read-only access.
+See [Connection modes](docs/connection.md), including running FCP without Docker.
+Remote servers are not supported. FCP does not install Fail2ban or create firewall rules.
 
 ```sh
 git clone https://github.com/woofix/fcp.git
@@ -23,39 +22,42 @@ cd fcp
 python3 install.py
 ```
 
-L’installateur crée `.env` avec un mot de passe aléatoire et
-`config/config.json` sans adresses personnelles. Il préserve les fichiers
-existants. Dans `.env`, renseigner `FCP_FAIL2BAN_CONTAINER` avec le nom du
-conteneur Fail2ban. Adapter les options décrites dans [Configuration](docs/configuration.md).
+The installer creates a private `.env` with a random administrator password
+and `config/config.json`, preserving existing settings. Set
+`FCP_FAIL2BAN_CONTAINER` to your container name, then review
+[Configuration](docs/configuration.md).
 
 ```sh
 docker compose config --quiet
 docker compose up -d --build
 ```
 
-Ouvrir http://127.0.0.1:9191 ; identifiant `admin`, mot de passe dans `.env`.
-Le port est local par défaut. Pour un serveur distant, utiliser un tunnel SSH
-ou un reverse proxy HTTPS authentifié. Voir [Sécurité](SECURITY.md).
+Configure an HTTPS reverse proxy before opening FCP. See [authentication setup](docs/authentication.md). The initial administrator password is in `.env`; remove it after initialization. Explicit local HTTP testing requires `FCP_ALLOW_HTTP=1`.
+Use an SSH tunnel or an HTTPS reverse proxy for remote access. All application
+routes require authentication; sensitive operations also require the existing
+CSRF token. See [Security](SECURITY.md).
 
-Les répertoires `data`, `state`, `config`, `geo` et `logs` sont persistants et
-exclus de Git. Leur sauvegarde est à la charge de l’opérateur.
+## Languages
 
-## Options
+Choose **Français** or **English** using the language selector. The preference
+is stored in a browser cookie for one year and applies to the dashboard,
+configuration, map, dialogs and application messages. Technical logs,
+configuration files, saved report contents and operator-provided values retain
+their original content. French is the default.
 
-- **HTTP** : facultatif, format NPMplus compatible, fichier monté à
-  `/app/logs/access.log`. Aucun journal d’exemple réel n’est distribué.
-- **Map Monde** : fond intégré ; placer sa base MMDB dans `geo/city.mmdb` ou
-  utiliser la mise à jour DB-IP de l’interface. Une IP sans coordonnées reste
-  non localisée. Les bases ne sont pas incluses.
-- **Automatisations** : profil facultatif `automations`, contrôles désactivés
-  par défaut. Voir [Configuration](docs/configuration.md) avant de les activer.
-- **E-mails automatiques** : remise à un conteneur Postfix existant via
-  `sendmail`, avec extrait normalisé, dates UTC et pièce jointe vérifiable.
-- **AbuseIPDB** : facultatif, clé privée dans un fichier local ; aucune clé
-  n’est intégrée au dépôt.
-- **Webhook/SMTP auxiliaires** : configuration et tests manuels. Le webhook
-  n’est pas le transport des signalements automatiques ; aucun événement
-  automatique n’est envoyé au webhook dans cette version.
+## Optional features
+
+- HTTP history: mount compatible NPMplus logs at `/app/logs/access.log`.
+- World map: supply `geo/city.mmdb` or use the DB-IP update in the interface.
+  IPs without coordinates stay in the list. Databases are not bundled.
+- Automations: optional `automations` Compose profile; disabled by default.
+- Email reports: existing Postfix container and `sendmail`, with UTC evidence
+  and a verifiable attachment.
+- AbuseIPDB: private local API-key file, never committed.
+- Auxiliary SMTP and webhook settings: manual tests. Automatic webhook event
+  delivery is not implemented in this version.
+
+Back up `data`, `state`, `config`, `geo` and `logs`; these are excluded from Git.
 
 ## Validation
 
@@ -65,16 +67,16 @@ python3.12 -m venv .venv
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-L’image utilise Python 3.12. Les tests hors réseau vérifient l’authentification,
-les noms de conteneurs configurés, l’absence de sources facultatives, les
-preuves, la suppression des données privées et les protections contre les
-renvois. Une nouvelle installation doit aussi être vérifiée avec ses propres
-jails, journaux et règles de pare-feu avant activation des signalements.
+The image uses Python 3.12. Tests cover authentication, language isolation,
+configured container names, optional sources, evidence, privacy filtering
+and duplicate prevention. Validate each installation with its own jails,
+logs and firewall rules before enabling reports.
 
-## Licence
+## License
 
-Code FCP : **Apache-2.0**, voir [LICENSE](LICENSE) et [NOTICE](NOTICE).
-Les dépendances et les données facultatives conservent leurs licences propres.
+FCP: **Apache-2.0**, see [LICENSE](LICENSE) and [NOTICE]. Dependencies and
+optional datasets retain their own licenses.
 
-Résultats et limites des vérifications : [Validation](docs/validation.md).
-Préparation du dépôt distant : [Publication GitHub](docs/publication.md).
+[Validation record](docs/validation.md) · [GitHub publication](docs/publication.md)
+
+[Authentication and sessions](docs/authentication.md)
