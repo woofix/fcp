@@ -18,6 +18,8 @@ La gestion persistante des fichiers cible l’organisation de crazymax/fail2ban 
 être vérifiées avant d’utiliser l’édition de configuration.
 
 ```sh
+git clone https://github.com/woofix/fcp.git
+cd fcp
 python3 install.py
 ```
 
