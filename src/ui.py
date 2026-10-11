@@ -91,18 +91,10 @@ def network_label(ip):
     except (ValueError, OSError):
         return 'Opérateur inconnu'
 
-abuse_executor = ThreadPoolExecutor(max_workers=2)
-abuse_cache = {}
-abuse_lock = threading.Lock()
 
 
 def geo_html(ip):
     label = '<span class="subline">' + escape(geo_label(ip)) + '</span><span class="subline">' + escape(network_label(ip)) + '</span>'
-    try:
-        if ipaddress.ip_address(ip).is_global:
-            label += f'<span class="subline abuse-result" data-ip="{escape(ip, quote=True)}">Contact abuse : recherche automatique…</span>'
-    except ValueError:
-        pass
     return label
 
 
@@ -464,7 +456,7 @@ body.compact .note{font-size:12px;margin-bottom:8px}
 body.compact .empty-state{padding:12px}
 body.compact .table-wrap{max-height:350px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.tabs button[aria-selected="true"]{background:#3498db;color:#fff;border-color:#3498db}.card[hidden]{display:none}
-.abuse-result{white-space:normal;overflow-wrap:anywhere;max-width:280px}.abuse-result a{color:#9dcfff}
+
 </style><link rel="stylesheet" href="/static/theme.css"><style>
 
 /* World map, isolated from both dashboard and administration styles. */
@@ -488,7 +480,7 @@ body.compact .table-wrap{max-height:350px}
 <div class="display-controls" aria-label="Options d’affichage">
 <div class="tabs" role="tablist" aria-label="Sections">
 <button type="button" role="tab" id="tab-overview" data-tab="overview" aria-selected="true">Vue d’ensemble</button>
-<button type="button" role="tab" id="administration-button" data-tab="administration" aria-selected="false" aria-controls="administration-panel">Configuration</button><div id="configuration-menu" class="configuration-menu" aria-label="Rubriques de configuration" hidden><button type="button" data-admin-section="overview" aria-current="false">État du service</button><button type="button" data-admin-section="jails" aria-current="false">Jails</button><button type="button" data-admin-section="files" aria-current="false">Filtres et actions</button><button type="button" data-admin-section="logs" aria-current="false">Journaux</button><button type="button" data-admin-section="backups" aria-current="false">Sauvegardes</button><button type="button" data-admin-section="abuse-settings" aria-current="false">Automatisations et e-mails</button><button type="button" data-admin-section="advanced" aria-current="false">Fonctions avancées</button></div>
+<button type="button" role="tab" id="administration-button" data-tab="administration" aria-selected="false" aria-controls="administration-panel">Configuration</button><div id="configuration-menu" class="configuration-menu" aria-label="Rubriques de configuration" hidden><button type="button" data-admin-section="overview" aria-current="false">État du service</button><button type="button" data-admin-section="jails" aria-current="false">Jails</button><button type="button" data-admin-section="files" aria-current="false">Filtres et actions</button><button type="button" data-admin-section="logs" aria-current="false">Journaux</button><button type="button" data-admin-section="backups" aria-current="false">Sauvegardes</button><button type="button" data-admin-section="automations" aria-current="false">Automatisations</button><button type="button" data-admin-section="advanced" aria-current="false">Fonctions avancées</button></div>
 <button type="button" role="tab" id="tab-detections" data-tab="detections" aria-selected="false">Détections</button>
 <button type="button" role="tab" id="tab-history" data-tab="history" aria-selected="false">Historique</button>
 <button type="button" role="tab" id="tab-requests" data-tab="requests" aria-selected="false">Requêtes HTTP</button>
@@ -496,7 +488,7 @@ body.compact .table-wrap{max-height:350px}
 <a class="application-navigation" href="/application">Administration de l’application</a>
 </div>
 </div>
-<p id="geo-note" class="note" style="padding:10px 20px;text-align:center">Pays et ville approximatifs · Opérateur et ASN : base locale facultative · DB-IP Lite, <span id="geo-version">version en cours de lecture</span> · <a href="https://db-ip.com" style="color:#9dcfff" target="_blank" rel="noopener noreferrer">IP Geolocation by DB-IP</a> · Contact abuse : recherche RDAP selon les réglages de Configuration → Automatisations et e-mails ; seule l’IP est transmise<br><button type="button" id="geo-update" style="margin-top:8px;padding:6px 12px;border-radius:6px;cursor:pointer">Mettre à jour la base</button> <span id="geo-update-status" role="status"></span></p>
+<p id="geo-note" class="note" style="padding:10px 20px;text-align:center">Pays et ville approximatifs · Opérateur et ASN : base locale facultative · DB-IP Lite, <span id="geo-version">version en cours de lecture</span> · <a href="https://db-ip.com" style="color:#9dcfff" target="_blank" rel="noopener noreferrer">IP Geolocation by DB-IP</a><br><button type="button" id="geo-update" style="margin-top:8px;padding:6px 12px;border-radius:6px;cursor:pointer">Mettre à jour la base</button> <span id="geo-update-status" role="status"></span></p>
 <section id="administration-panel" role="tabpanel" aria-labelledby="administration-button" hidden><iframe id="administration-frame" title="Administration Fail2ban" style="width:100%;height:750px;border:0;display:block" loading="lazy"></iframe></section>
 <section id="map-panel" role="tabpanel" aria-labelledby="tab-map" hidden></section>
 <div class="stats-grid">
@@ -740,9 +732,6 @@ mapEl('map-reload').onclick=()=>loadMap().catch(()=>{});for(const name of ['map-
 mapSvg.addEventListener('wheel',e=>{e.preventDefault();mapZoom(e.deltaY<0?.8:1.25);},{passive:false});mapSvg.addEventListener('pointerdown',e=>{if(e.target.closest('.map-point'))return;mapDrag={x:e.clientX,y:e.clientY,box:[...mapBox]};mapSvg.setPointerCapture(e.pointerId);});mapSvg.addEventListener('pointermove',e=>{if(!mapDrag)return;const rect=mapSvg.getBoundingClientRect(),[x,y,w,h]=mapDrag.box;mapBox=[Math.max(0,Math.min(960-w,x-(e.clientX-mapDrag.x)*w/rect.width)),Math.max(0,Math.min(480-h,y-(e.clientY-mapDrag.y)*h/rect.height)),w,h];mapView();});mapSvg.addEventListener('pointerup',()=>mapDrag=null);mapSvg.addEventListener('pointercancel',()=>mapDrag=null);
 document.addEventListener('click',e=>{const button=e.target.closest('[data-map-jail]');if(!button)return;openBanMap(button.dataset.mapJail||'',button.dataset.mapIp||'',button.dataset.mapState||'banned');});
 
-let abuseBusy=false;
-async function refreshAbuse(){if(abuseBusy)return;abuseBusy=true;try{const addresses=[...new Set([...document.querySelectorAll('.card:not([hidden]) .abuse-result')].map(node=>node.dataset.ip))];for(let offset=0;offset<addresses.length;offset+=20){const response=await fetch('/abuse/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ips:addresses.slice(offset,offset+20)})});if(!response.ok)throw new Error();const records=await response.json();document.querySelectorAll('.abuse-result').forEach(node=>{const data=records[node.dataset.ip];if(!data)return;node.replaceChildren();if(data.contacts&&data.contacts.length){node.append(document.createTextNode('Abuse : '));data.contacts.forEach((email,index)=>{if(index)node.append(document.createTextNode(', '));const link=document.createElement('a');link.href='mailto:'+email;link.textContent=email;node.append(link);});}else node.textContent=data.message;});}}catch(e){document.querySelectorAll('.card:not([hidden]) .abuse-result').forEach(node=>{if(node.textContent.includes('recherche automatique'))node.textContent='Contact abuse : recherche indisponible';});}finally{abuseBusy=false;}}
-setTimeout(refreshAbuse,0);setInterval(refreshAbuse,5000);
 const geoUpdateButton=document.getElementById('geo-update');
 async function geoStatus(){try{const response=await fetch('/geo/status');if(!response.ok)throw new Error();const data=await response.json();document.getElementById('geo-version').textContent=data.version;document.getElementById('geo-update-status').textContent=data.message;geoUpdateButton.disabled=data.running;geoUpdateButton.textContent=data.running?'Mise à jour en cours…':'Mettre à jour la base';}catch(e){document.getElementById('geo-update-status').textContent='État de la base indisponible';}}
 geoUpdateButton.addEventListener('click',async()=>{geoUpdateButton.disabled=true;try{const response=await fetch('/geo/update',{method:'POST',headers:{'X-Requested-With':'Fail2ban-UI'}});if(!response.ok)throw new Error();await geoStatus();}catch(e){document.getElementById('geo-update-status').textContent='Impossible de démarrer la mise à jour';geoUpdateButton.disabled=false;}});
@@ -757,12 +746,12 @@ const groups=cards.map((card,index)=>index<__OVERVIEWCOUNT__?'overview':['detect
 const tabButtons=[...document.querySelectorAll('[role="tab"]')];
 function saveDisplay(){try{localStorage.setItem(displayKey,JSON.stringify(displayPrefs));}catch(e){}}
 function applyCompact(){document.body.classList.remove('compact');displayPrefs.compact=false;}
-const adminSections=['overview','jails','files','logs','backups','abuse-settings','advanced'];
+const adminSections=['overview','jails','files','logs','backups','automations','advanced'];
 let selectedAdminSection='overview';try{const saved=localStorage.getItem('fcp-admin-section');if(adminSections.includes(saved))selectedAdminSection=saved;}catch(e){}
 function syncAdminMenu(){document.querySelectorAll('[data-admin-section]').forEach(b=>b.setAttribute('aria-current',b.dataset.adminSection===selectedAdminSection?'page':'false'));}
 function sendAdminSection(){const f=document.getElementById('administration-frame');if(f.contentWindow)f.contentWindow.postMessage({type:'fcp-admin-navigate',section:selectedAdminSection},location.origin);}
 document.querySelectorAll('[data-admin-section]').forEach(b=>b.addEventListener('click',()=>{selectedAdminSection=b.dataset.adminSection;try{localStorage.setItem('fcp-admin-section',selectedAdminSection);}catch(e){}selectTab('administration');syncAdminMenu();sendAdminSection();document.getElementById('administration-panel').scrollIntoView({block:'start'});}));
-function selectTab(name){if(!groups.includes(name)&&name!=='administration'&&name!=='map')name='overview';const admin=name==='administration',world=name==='map';document.getElementById('configuration-menu').hidden=!admin;syncAdminMenu();document.getElementById('map-panel').hidden=!world;if(world)openBanMap('','','all',true);document.getElementById('administration-panel').hidden=!admin;document.querySelector('.stats-grid').hidden=admin||world;document.getElementById('geo-note').hidden=admin||world;const frame=document.getElementById('administration-frame');if(admin&&!frame.getAttribute('src'))frame.src='/manage?embedded=1';displayPrefs.tab=name;cards.forEach((card,i)=>{card.hidden=groups[i]!==name;card.setAttribute('role','tabpanel');card.setAttribute('aria-labelledby','tab-'+groups[i]);});tabButtons.forEach(button=>{const selected=button.dataset.tab===name;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;});saveDisplay();setTimeout(refreshAbuse,0);}
+function selectTab(name){if(!groups.includes(name)&&name!=='administration'&&name!=='map')name='overview';const admin=name==='administration',world=name==='map';document.getElementById('configuration-menu').hidden=!admin;syncAdminMenu();document.getElementById('map-panel').hidden=!world;if(world)openBanMap('','','all',true);document.getElementById('administration-panel').hidden=!admin;document.querySelector('.stats-grid').hidden=admin||world;document.getElementById('geo-note').hidden=admin||world;const frame=document.getElementById('administration-frame');if(admin&&!frame.getAttribute('src'))frame.src='/manage?embedded=1';displayPrefs.tab=name;cards.forEach((card,i)=>{card.hidden=groups[i]!==name;card.setAttribute('role','tabpanel');card.setAttribute('aria-labelledby','tab-'+groups[i]);});tabButtons.forEach(button=>{const selected=button.dataset.tab===name;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;});saveDisplay();}
 window.addEventListener('message',event=>{const frame=document.getElementById('administration-frame');if(event.origin!==location.origin||event.source!==frame.contentWindow)return;if(event.data?.type==='fcp-admin-ready')sendAdminSection();if(event.data?.type==='fcp-admin-section'&&adminSections.includes(event.data.section)){selectedAdminSection=event.data.section;syncAdminMenu();}if(event.data?.type==='fail2ban-admin-height'&&Number.isFinite(event.data.height))frame.style.height=Math.max(500,Math.min(6000,event.data.height))+'px';});
 setInterval(()=>{if(!['administration','map'].includes(displayPrefs.tab)&&!mapDialog.open)location.reload();},30000);
 applyCompact();selectTab(displayPrefs.tab);
@@ -771,7 +760,7 @@ const searchBox=document.getElementById('request-search'), filterBox=document.ge
 function filterRequests(){const query=searchBox.value.toLowerCase(), category=filterBox.value;let count=0;document.querySelectorAll('.request-row').forEach(row=>{const match=(category==='all'||(category==='suspect'?row.dataset.suspect==='1':row.dataset.kind===category))&&row.textContent.toLowerCase().includes(query);row.hidden=!match;if(match)count++;});document.getElementById('visible-count').textContent=count+' lignes affichées';}
 if(searchBox&&filterBox){searchBox.addEventListener('input',filterRequests);filterBox.addEventListener('change',filterRequests);filterRequests();}
 let httpPage=1;
-async function loadHttpPage(page){const prev=document.getElementById('http-previous'),next=document.getElementById('http-next');prev.disabled=next.disabled=true;try{const response=await fetch('/http/history?page='+page);const data=await response.json();if(!response.ok)throw Error(data.error||'Historique indisponible');document.querySelector('#http-history-table tbody').innerHTML=data.html;httpPage=data.page;document.getElementById('http-page').textContent='Page '+data.page+' / '+data.pages+' · '+data.count+' requêtes enregistrées · conservation '+data.retention_days+' jours';prev.disabled=data.page<=1;next.disabled=data.page>=data.pages;filterRequests();refreshAbuse();}catch(error){document.getElementById('http-page').textContent=error.message;prev.disabled=httpPage<=1;next.disabled=false;}}
+async function loadHttpPage(page){const prev=document.getElementById('http-previous'),next=document.getElementById('http-next');prev.disabled=next.disabled=true;try{const response=await fetch('/http/history?page='+page);const data=await response.json();if(!response.ok)throw Error(data.error||'Historique indisponible');document.querySelector('#http-history-table tbody').innerHTML=data.html;httpPage=data.page;document.getElementById('http-page').textContent='Page '+data.page+' / '+data.pages+' · '+data.count+' requêtes enregistrées · conservation '+data.retention_days+' jours';prev.disabled=data.page<=1;next.disabled=data.page>=data.pages;filterRequests();}catch(error){document.getElementById('http-page').textContent=error.message;prev.disabled=httpPage<=1;next.disabled=false;}}
 document.getElementById('http-previous')?.addEventListener('click',()=>loadHttpPage(httpPage-1));
 document.getElementById('http-next')?.addEventListener('click',()=>loadHttpPage(httpPage+1));
 
@@ -786,107 +775,6 @@ function unban(ip,jail){
 """
     return html.replace("__OVERVIEWCOUNT__", str(2 + len(jail_names))).replace("__ADMINTOKEN__", admin_token)
 
-
-
-def fetch_abuse(ip, settings=None, revision=0):
-    settings = settings or abuse_settings_read()[0]
-    result = {'contacts': [], 'message': 'Contact abuse non renseigné dans le registre', 'expires': time.time() + settings['cache_hours'] * 3600, 'revision': revision}
-    try:
-        query = urllib.request.Request('https://rdap.org/ip/' + ip, headers={'User-Agent': 'curl/8.14.1', 'Accept': 'application/rdap+json'})
-        with urllib.request.urlopen(query, timeout=15) as response:
-            body = response.read(2 * 1024 * 1024 + 1)
-        if len(body) > 2 * 1024 * 1024:
-            raise ValueError('Réponse trop volumineuse')
-        record = json.loads(body)
-        emails = set()
-        def visit(entities, depth=0):
-            if depth > 6 or not isinstance(entities, list):
-                return
-            for entity in entities:
-                if not isinstance(entity, dict):
-                    continue
-                if 'abuse' in entity.get('roles', []):
-                    card = entity.get('vcardArray', [])
-                    if len(card) == 2 and isinstance(card[1], list):
-                        for entry in card[1]:
-                            if isinstance(entry, list) and len(entry) >= 4 and entry[0] == 'email' and isinstance(entry[3], str) and re.fullmatch(r"[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+", entry[3]):
-                                emails.add(entry[3])
-                visit(entity.get('entities', []), depth + 1)
-        visit(record.get('entities', []))
-        result['contacts'] = sorted(emails)
-    except Exception:
-        result.update(message=f"Contact abuse : registre indisponible, nouvelle tentative dans {settings['retry_minutes']} min", expires=time.time() + settings['retry_minutes'] * 60)
-    with abuse_lock:
-        abuse_cache[ip] = result
-
-repeat_snapshot = {'expires': 0, 'counts': {}}
-repeat_lock = threading.Lock()
-
-def repeated_bans():
-    settings, revision = abuse_settings_read()
-    with repeat_lock:
-        if repeat_snapshot['expires'] > time.time() and repeat_snapshot.get('revision') == revision:
-            return repeat_snapshot['counts']
-        log_text = f2b.logs(lines=10000, since=str(settings['window_hours'])+'h')
-        episodes = {}
-        pattern = re.compile(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+.*?\[([^]]+)\] Ban (\S+)')
-        for line in log_text.splitlines():
-            match = pattern.search(line)
-            if not match:
-                continue
-            stamp, jail, ip = match.groups()
-            try:
-                address = ipaddress.ip_address(ip)
-                if not address.is_global:
-                    continue
-            except ValueError:
-                continue
-            # Distinct ban times; duplicate lines or simultaneous jails count once.
-            episodes.setdefault(str(address), set()).add(stamp)
-        counts = {ip: len(stamps) for ip, stamps in episodes.items()}
-        repeat_snapshot.update(expires=time.time() + 30, counts=counts, revision=revision)
-        return counts
-
-@app.route('/abuse/status', methods=['POST'])
-def abuse_status():
-    payload = request.get_json(silent=True) or {}
-    ips = payload.get('ips', [])
-    if not isinstance(ips, list) or len(ips) > 20:
-        return jsonify(error='Liste incorrecte'), 400
-    settings, revision = abuse_settings_read()
-    if not settings['lookup_enabled']:
-        return jsonify({str(ip): {'contacts': [], 'message': 'Recherche des contacts abuse désactivée.'} for ip in ips if isinstance(ip, str)})
-    try:
-        repeats = repeated_bans()
-    except (OSError, subprocess.SubprocessError, ValueError):
-        return jsonify(error='Impossible de vérifier la récidive'), 503
-    output = {}
-    with abuse_lock:
-        for raw_ip in ips:
-            try:
-                address = ipaddress.ip_address(raw_ip)
-                if not address.is_global:
-                    continue
-                ip = str(address)
-            except (ValueError, TypeError):
-                continue
-            count = repeats.get(ip, 0)
-            if count < settings['min_bans']:
-                output[ip] = {'contacts': [], 'message': f"Abuse non recherché : {count} ban sur {settings['window_hours']} h, seuil = {settings['min_bans']} bans distincts"}
-                continue
-            previous = abuse_cache.get(ip)
-            if previous is None or previous['expires'] < time.time() or previous.get('revision') != revision:
-                if len(abuse_cache) >= 512:
-                    expired = [key for key, value in abuse_cache.items() if value['expires'] < time.time()]
-                    for key in expired:
-                        abuse_cache.pop(key, None)
-                    if len(abuse_cache) >= 512:
-                        output[ip] = {'contacts': [], 'message': 'Contact abuse : limite de recherches atteinte'}
-                        continue
-                abuse_cache[ip] = {'contacts': [], 'message': 'Contact abuse : recherche en cours…', 'expires': time.time() + 120, 'revision': revision}
-                abuse_executor.submit(fetch_abuse, ip, settings, revision)
-            output[ip] = {key: value for key, value in abuse_cache[ip].items() if key not in ('expires', 'revision')}
-    return jsonify(output)
 
 @app.route('/geo/status')
 def geo_status():
@@ -1079,7 +967,6 @@ def save_connection(settings, revision):
     with admin_mutation_lock:
         result=f2b.save(settings,revision)
         with snapshot_lock: snapshots.clear()
-        with repeat_lock: repeat_snapshot['expires']=0
         invalidate_dashboard()
         return result
 
@@ -1090,98 +977,48 @@ def admin_jail(value):
         raise ValueError('Nom de jail invalide')
     return value
 
-# Persistent contact lookup and mail settings; managed by the existing admin API.
-ABUSE_SETTINGS_PATH = os.environ.get('FCP_ABUSE_SETTINGS', '/app/data/abuse-settings.sqlite3')
-ABUSE_DEFAULTS = {'webhook_url': '', 'webhook_token': '', 'webhook_events': 'all', 'lookup_enabled': True, 'min_bans': 2, 'window_hours': 24, 'cache_hours': 24, 'retry_minutes': 15, 'smtp_host': '', 'smtp_port': 587, 'smtp_security': 'starttls', 'smtp_username': '', 'smtp_password': '', 'sender': '', 'reply_to': '', 'test_recipient': '', 'subject': 'Abuse report — {ip}', 'message': 'Hello,\n\nWe have observed suspicious activity originating from {ip}.\nAffected protection: {jail}\nDate: {date}\n\nPlease investigate this activity and take appropriate action.\n\nThank you.\n'}
+# Private webhook settings, guarded by a transaction and revision.
+WEBHOOK_SETTINGS_PATH = os.environ.get('FCP_WEBHOOK_SETTINGS', '/app/data/webhook-settings.sqlite3')
+WEBHOOK_DEFAULTS = {'webhook_url': '', 'webhook_token': '', 'webhook_events': 'bans'}
 
-def abuse_settings_read():
-    result = dict(ABUSE_DEFAULTS)
-    if not os.path.exists(ABUSE_SETTINGS_PATH):
-        return result, 0
-    with sqlite3.connect(ABUSE_SETTINGS_PATH, timeout=5) as db:
+def webhook_settings_read():
+    result = dict(WEBHOOK_DEFAULTS)
+    if not os.path.exists(WEBHOOK_SETTINGS_PATH): return result, 0
+    with sqlite3.connect(WEBHOOK_SETTINGS_PATH, timeout=5) as db:
         row = db.execute('SELECT payload, revision FROM settings WHERE id=1').fetchone()
     if row:
-        result.update(json.loads(row[0]))
+        saved=json.loads(row[0]); result.update({k:saved[k] for k in result if k in saved})
         return result, row[1]
     return result, 0
 
+def webhook_settings_public():
+    settings, revision = webhook_settings_read()
+    configured = bool(settings.pop('webhook_token'))
+    return {'settings':settings, 'webhook_token_configured':configured, 'revision':revision}
 
-def abuse_settings_public():
-    settings, revision = abuse_settings_read()
-    configured = bool(settings.pop('smtp_password'))
-    webhook_configured = bool(settings.pop('webhook_token'))
-    return {'settings': settings, 'password_configured': configured, 'webhook_token_configured': webhook_configured, 'revision': revision}
-
-
-def abuse_settings_validate(payload, previous):
-    data = dict(previous)
-    values = payload.get('settings')
-    if not isinstance(values, dict):
-        raise ValueError('Paramètres invalides.')
-    if set(values) - set(ABUSE_DEFAULTS):
-        raise ValueError('Paramètre inconnu.')
-    for key, value in values.items():
-        if key == 'lookup_enabled':
-            if type(value) is not bool: raise ValueError('Activation invalide.')
-        elif key in ('min_bans', 'window_hours', 'cache_hours', 'retry_minutes', 'smtp_port'):
-            bounds = {'min_bans': (1, 100), 'window_hours': (1, 168), 'cache_hours': (1, 168), 'retry_minutes': (1, 1440), 'smtp_port': (1, 65535)}
-            low, high = bounds[key]
-            if type(value) is not int or not low <= value <= high:
-                raise ValueError(f'{key} doit être compris entre {low} et {high}.')
-        else:
-            if not isinstance(value, str) or len(value) > (10000 if key == 'message' else 500):
-                raise ValueError('Texte invalide ou trop long : ' + key)
-            if key not in ('message', 'smtp_password') and any(c in value for c in '\r\n\x00'):
-                raise ValueError('Caractère interdit : ' + key)
-            if key == 'smtp_security' and value not in ('starttls', 'ssl'):
-                raise ValueError('Choisissez STARTTLS ou TLS direct.')
-            if key in ('sender', 'reply_to', 'test_recipient') and value and not re.fullmatch(r'[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+', value):
-                raise ValueError('Adresse e-mail invalide : ' + key)
-            if key == 'smtp_host' and value and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.:-]{0,252}', value):
-                raise ValueError('Nom du serveur SMTP invalide.')
-            if key == 'webhook_url' and value:
-                webhook_validate_url(value)
-            if key == 'webhook_events' and value not in ('all', 'bans', 'abuse'):
-                raise ValueError('Événements webhook invalides.')
-            if key in ('smtp_password', 'webhook_token') and value == '':
-                continue  # Empty means preserve; explicit removal is a separate flag.
-        data[key] = value
-    if payload.get('clear_password') is True:
-        data['smtp_password'] = ''
-    if payload.get('clear_webhook_token') is True:
-        data['webhook_token'] = ''
-    import string
-    for key in ('subject', 'message'):
-        try:
-            for _, field, spec, conversion in string.Formatter().parse(data[key]):
-                if field is not None and (field not in ('ip', 'jail', 'date') or spec or conversion):
-                    raise ValueError('Variables autorisées : {ip}, {jail}, {date}.')
-        except ValueError:
-            raise ValueError('Modèle invalide. Variables autorisées : {ip}, {jail}, {date}.')
-    return data
-
-
-def abuse_settings_save(payload):
-    # Private file, transaction and revision guard also work across Gunicorn workers.
-    fd = os.open(ABUSE_SETTINGS_PATH, os.O_CREAT | os.O_WRONLY, 0o600)
-    os.close(fd)
-    os.chmod(ABUSE_SETTINGS_PATH, 0o600)
-    with sqlite3.connect(ABUSE_SETTINGS_PATH, timeout=5) as db:
+def webhook_settings_save(payload):
+    values=payload.get('settings')
+    if not isinstance(values,dict) or set(values)-set(WEBHOOK_DEFAULTS): raise ValueError('Paramètre inconnu.')
+    fd=os.open(WEBHOOK_SETTINGS_PATH,os.O_CREAT|os.O_WRONLY,0o600);os.close(fd)
+    os.chmod(WEBHOOK_SETTINGS_PATH,0o600)
+    with sqlite3.connect(WEBHOOK_SETTINGS_PATH,timeout=5) as db:
         db.execute('CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY, payload TEXT NOT NULL, revision INTEGER NOT NULL)')
         db.execute('BEGIN IMMEDIATE')
-        row = db.execute('SELECT payload, revision FROM settings WHERE id=1').fetchone()
-        previous = dict(ABUSE_DEFAULTS)
-        revision = 0
+        row=db.execute('SELECT payload, revision FROM settings WHERE id=1').fetchone()
+        revision=row[1] if row else 0
+        if payload.get('revision')!=revision: raise ValueError('Réglages modifiés ailleurs. Rechargez cet onglet avant de réessayer.')
+        settings=dict(WEBHOOK_DEFAULTS)
         if row:
-            previous.update(json.loads(row[0])); revision = row[1]
-        if payload.get('revision') != revision:
-            raise ValueError('Réglages modifiés ailleurs. Rechargez cet onglet avant de réessayer.')
-        settings = abuse_settings_validate(payload, previous)
-        db.execute('INSERT OR REPLACE INTO settings VALUES (1, ?, ?)', (json.dumps(settings), revision + 1))
-    with repeat_lock:
-        repeat_snapshot['expires'] = 0
-    return {'output': 'Réglages abuse et e-mail enregistrés.', **abuse_settings_public()}
-
+            saved=json.loads(row[0]);settings.update({k:saved[k] for k in settings if k in saved})
+        for key,value in values.items():
+            if not isinstance(value,str) or len(value)>500 or any(c in value for c in '\r\n\x00'): raise ValueError('Texte invalide : '+key)
+            if key=='webhook_url' and value: webhook_validate_url(value)
+            if key=='webhook_events' and value!='bans': raise ValueError('Événements webhook invalides.')
+            if key=='webhook_token' and not value: continue
+            settings[key]=value
+        if payload.get('clear_webhook_token') is True: settings['webhook_token']=''
+        db.execute('INSERT OR REPLACE INTO settings VALUES (1,?,?)',(json.dumps(settings),revision+1))
+    return {'output':'Réglages webhook enregistrés.',**webhook_settings_public()}
 
 
 def webhook_validate_url(value):
@@ -1197,11 +1034,11 @@ def webhook_validate_url(value):
 
 def webhook_send_test():
     from datetime import datetime, timezone
-    settings, _ = abuse_settings_read()
+    settings, _ = webhook_settings_read()
     if not settings['webhook_url']:
         raise ValueError('Enregistrez une URL webhook avant le test.')
     webhook_validate_url(settings['webhook_url'])
-    payload = {'event': 'test', 'source': 'FCP', 'message': 'FCP webhook configuration test. No ban or abuse report has been sent.', 'timestamp': datetime.now(timezone.utc).isoformat()}
+    payload = {'event': 'test', 'source': 'FCP', 'message': 'FCP webhook configuration test. No ban has been sent.', 'timestamp': datetime.now(timezone.utc).isoformat()}
     headers = {'Content-Type': 'application/json', 'User-Agent': 'FCP-Webhook/1.0'}
     if settings['webhook_token']:
         headers['Authorization'] = 'Bearer ' + settings['webhook_token']
@@ -1217,40 +1054,6 @@ def webhook_send_test():
         raise ValueError('Webhook refusé (HTTP %s). Vérifiez le destinataire et son authentification.' % error.code)
     except (OSError, ValueError):
         raise ValueError('Connexion webhook impossible. Vérifiez l’URL et le certificat TLS.')
-
-def abuse_smtp_test(send=False):
-    import smtplib, ssl
-    from email.message import EmailMessage
-    settings, _ = abuse_settings_read()
-    if not settings['smtp_host']:
-        raise ValueError('Enregistrez le serveur SMTP avant le test.')
-    if send and (not settings['sender'] or not settings['test_recipient']):
-        raise ValueError('Renseignez un expéditeur et un destinataire de test.')
-    context = ssl.create_default_context()
-    try:
-        if settings['smtp_security'] == 'ssl':
-            server = smtplib.SMTP_SSL(settings['smtp_host'], settings['smtp_port'], timeout=10, context=context)
-        else:
-            server = smtplib.SMTP(settings['smtp_host'], settings['smtp_port'], timeout=10)
-        with server:
-            server.ehlo()
-            if settings['smtp_security'] == 'starttls':
-                server.starttls(context=context); server.ehlo()
-            if settings['smtp_username']:
-                server.login(settings['smtp_username'], settings['smtp_password'])
-            if send:
-                message = EmailMessage()
-                message['From'] = settings['sender']; message['To'] = settings['test_recipient']
-                message['Subject'] = 'FCP — test de configuration e-mail'
-                if settings['reply_to']: message['Reply-To'] = settings['reply_to']
-                message.set_content('Ce message confirme le test manuel de la configuration SMTP de FCP. Aucun signalement abuse ne figure dans cet e-mail.')
-                server.send_message(message)
-    except smtplib.SMTPAuthenticationError:
-        raise ValueError('Authentification SMTP refusée. Vérifiez le compte et le mot de passe.')
-    except (OSError, smtplib.SMTPException):
-        raise ValueError('Connexion SMTP impossible. Vérifiez le serveur, le port et la sécurité TLS.')
-    return {'output': 'E-mail de test accepté par le serveur SMTP.' if send else 'Connexion TLS et authentification SMTP réussies. Aucun e-mail envoyé.'}
-
 
 def ban_map_data():
     """Current bans are authoritative; lifted bans require an explicit Unban event."""
@@ -1313,15 +1116,14 @@ def automation_read():
     import hashlib
     with open(AUTOMATION_FILE,'rb') as handle:
         raw = handle.read()
-    settings=json.loads(raw)
+    settings={k:v for k,v in json.loads(raw).items() if k in {'abuseipdb_enabled','report_enabled','min_bans','window_hours','cooldown_hours','sender','recipient'}}
     states={}
     history=[]
-    for kind in ('abuse','abuseipdb'):
+    for kind in ('abuseipdb',):
         try:
             with open(AUTOMATION_STATE+'/'+kind+'/latest.json') as f: states[kind]=json.load(f)
             with open(AUTOMATION_STATE+'/'+kind+'/state.json') as f: state=json.load(f)
-            if kind=='abuse': history=state.get('history',[])[-50:][::-1]
-            else: states[kind]['history']=sorted([dict(v,ip=k) for k,v in state.items()],key=lambda x:x.get('submitted_at',0),reverse=True)[:50]
+            states[kind]['history']=sorted([dict(v,ip=k) for k,v in state.items()],key=lambda x:x.get('submitted_at',0),reverse=True)[:50]
         except (OSError,ValueError): states.setdefault(kind,{'status':'indisponible'})
     try:
         with open(AUTOMATION_STATE+'/latest.txt') as f: report=f.read(100000)
@@ -1336,17 +1138,17 @@ def automation_save(q):
         current=automation_read()
         if q.get('revision')!=current['revision']: raise ValueError('Réglages modifiés ailleurs : rechargez la page.')
         values=q.get('settings')
-        allowed={'email_enabled','abuseipdb_enabled','report_enabled','min_bans','window_hours','cooldown_hours','sender','recipient','subject','message'}
+        allowed={'abuseipdb_enabled','report_enabled','min_bans','window_hours','cooldown_hours','sender','recipient'}
         if not isinstance(values,dict) or set(values)!=allowed: raise ValueError('Réglages incomplets ou inconnus.')
-        for key in ('email_enabled','abuseipdb_enabled','report_enabled'):
+        for key in ('abuseipdb_enabled','report_enabled'):
             if type(values[key]) is not bool: raise ValueError('Activation invalide.')
         for key,lo,hi in [('min_bans',2,100),('window_hours',1,24),('cooldown_hours',24,168)]:
             if type(values[key]) is not int or not lo<=values[key]<=hi: raise ValueError('Seuil hors limites : '+key)
-        for key in ('sender','recipient','subject','message'):
+        for key in ('sender','recipient'):
             value=values[key]
-            optional_address = key in ('sender','recipient') and not (values['email_enabled'] or values['report_enabled'])
+            optional_address = key in ('sender','recipient') and not values['report_enabled']
             if not isinstance(value,str) or (not value.strip() and not optional_address) or len(value)>5000 or '\x00' in value: raise ValueError('Champ invalide : '+key)
-            if key!='message' and ('\n' in value or '\r' in value): raise ValueError('En-tête invalide.')
+            if '\n' in value or '\r' in value: raise ValueError('En-tête invalide.')
         for key in ('sender','recipient'):
             if values[key] and not re.fullmatch(r'[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+',values[key]): raise ValueError('Adresse invalide.')
         settings=current['settings'];settings.update(values)
@@ -1382,15 +1184,11 @@ def administration():
         op=q.get('op')
         if op=='automation_read': return jsonify(automation_read())
         if op=='automation_save': return jsonify(automation_save(q))
-        if op=='abuse_settings_read': return jsonify(abuse_settings_public())
-        if op=='abuse_settings_save': return jsonify(abuse_settings_save(q))
+        if op=='webhook_settings_read': return jsonify(webhook_settings_public())
+        if op=='webhook_settings_save': return jsonify(webhook_settings_save(q))
         if op=='webhook_test':
             if q.get('confirm') is not True: raise ValueError('Confirmation requise.')
             return jsonify(webhook_send_test())
-        if op=='abuse_smtp_test': return jsonify(abuse_smtp_test())
-        if op=='abuse_smtp_send_test':
-            if q.get('confirm') is not True: raise ValueError('Confirmation requise.')
-            return jsonify(abuse_smtp_test(send=True))
         if op=='ban_map_data': return jsonify(ban_map_data())
         if op=='overview':
             return jsonify(status=admin_exec(['fail2ban-client','status','--all']),version=admin_exec(['fail2ban-client','version']).strip(),files=admin_config({'op':'inventory'}))
@@ -1469,45 +1267,40 @@ ADMIN_HTML = r'''<!doctype html><html lang="fr"><head><meta charset="utf-8"><met
 
 .grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 20px;align-items:start}.grid>div{min-width:0}.grid>div>label:first-child{min-height:3.1em;margin:0 0 8px;display:flex;align-items:flex-end;line-height:1.5}.grid input:not([type=checkbox]),.grid select{width:100%;height:46px;min-height:46px;box-sizing:border-box}.grid select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%2342506b' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}.grid small{display:block;margin-top:7px;line-height:1.45}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.grid{grid-template-columns:minmax(0,1fr)}.grid>div>label:first-child{min-height:0}}
-</style></head><body><header><a href="/">← Tableau de bord</a><h1>Administration Fail2ban</h1><p>Gestion persistante des protections, filtres et actions.</p></header><main><div id="message" role="status" aria-live="polite"></div><nav><button data-tab="overview">État du service</button><button data-tab="jails">Jails</button><button data-tab="files">Filtres et actions</button><button data-tab="logs">Journaux</button><button data-tab="backups">Sauvegardes</button><button data-tab="abuse-settings">Automatisations et e-mails</button><button data-tab="advanced">Fonctions avancées</button></nav>
+</style></head><body><header><a href="/">← Tableau de bord</a><h1>Administration Fail2ban</h1><p>Gestion persistante des protections, filtres et actions.</p></header><main><div id="message" role="status" aria-live="polite"></div><nav><button data-tab="overview">État du service</button><button data-tab="jails">Jails</button><button data-tab="files">Filtres et actions</button><button data-tab="logs">Journaux</button><button data-tab="backups">Sauvegardes</button><button data-tab="automations">Automatisations</button><button data-tab="advanced">Fonctions avancées</button></nav>
 <section id="overview"><div class="card"><h2>Fail2ban — version <span id="version" class="badge"></span></h2><div class="row"><button id="refresh">Actualiser</button><button id="test">Tester la configuration</button><button id="reload">Appliquer la configuration</button><button id="all" class="danger">Débannir toutes les IP</button></div><p id="servicesummary">Chargement…</p><details><summary>Détails techniques du service</summary><div class="row" style="margin-top:12px"><button data-service="start">Démarrer Fail2ban</button><button class="danger" data-service="restart">Redémarrer Fail2ban</button><button class="danger" data-service="stop">Arrêter Fail2ban</button></div><pre id="service"></pre></details><p class="muted">L’application recharge les protections sans redémarrer le conteneur. Les bans manuels suivent la durée définie par chaque jail.</p></div></section>
 <section id="jails" hidden><div class="card"><h2>Gérer les jails</h2><div class="row"><select id="jailfile"></select><button id="openjail">Ouvrir</button><button id="newjail">Créer une jail</button></div><p class="muted">Les changements sont sauvegardés, testés puis appliqués. Désactiver une jail retire sa protection et peut lever ses bans.</p></div><div class="card" id="jailpanel" hidden><h2 id="jailtitle"></h2><div class="grid"><div><label for="jailname">Nom de la jail</label><input id="jailname"></div><div><label for="enabled">Protection</label><select id="enabled"><option value="true">Activée</option><option value="false">Désactivée</option></select></div><div><label for="filter">Filtre</label><input id="filter" list="filterlist"><datalist id="filterlist"></datalist></div><div><label for="backend">Lecture des journaux</label><select id="backend"><option>polling</option><option>auto</option><option>systemd</option></select></div><div><label for="maxretry">Échecs avant ban</label><input id="maxretry" type="number" min="1"></div><div><label for="findtime">Fenêtre de détection</label><input id="findtime" placeholder="10m"></div><div><label for="bantime">Durée du ban</label><input id="bantime" placeholder="1h"></div><div><label for="port">Ports</label><input id="port"></div></div><label for="logpath">Journaux surveillés (un chemin par ligne)</label><textarea id="logpath" rows="3"></textarea><label for="ignoreip">Adresses et réseaux exclus</label><input id="ignoreip"><label for="action">Actions exécutées lors du ban</label><textarea id="action" rows="3"></textarea><div class="row" style="margin-top:16px"><button id="savejail">Enregistrer et appliquer</button><button id="validatejail">Tester sans enregistrer</button><button id="restartjail">Recharger cette jail</button><button id="deletejail" class="danger">Supprimer ce fichier</button></div><details><summary style="margin-top:16px">Configuration complète et options avancées</summary><p class="muted">Durées progressives, DNS, regex, paramètres d’action et autres options Fail2ban. L’éditeur conserve les options non présentes dans le formulaire.</p><textarea id="jailraw" class="code"></textarea><button id="saveraw">Enregistrer l’éditeur complet</button></details><h3>État et paramètres actifs</h3><p id="jailsummary"></p><details><summary>Détails techniques et paramètres actifs</summary><pre id="jailstatus"></pre></details><div class="row"><input id="ip" placeholder="Adresse IPv4 ou IPv6"><button id="ban">Bannir</button><button id="unban">Débannir</button><button id="jailrefresh">Actualiser l’état</button></div></div></section>
 <section id="files" hidden><div class="card"><h2>Filtres et actions</h2><div class="row"><select id="kind"><option value="filter">Filtres</option><option value="action">Actions</option></select><select id="filename"></select><button id="openfile">Ouvrir</button><button id="newfile">Créer</button></div><label for="editname">Nom du fichier</label><input id="editname" placeholder="mon-filtre.conf"><p class="muted">Les actions exécutent des commandes sur le serveur : vérifiez leur contenu avant application.</p><textarea id="content" class="code"></textarea><div class="row"><button id="validatefile">Tester la configuration</button><button id="savefile">Enregistrer et appliquer</button><button id="deletefile" class="danger">Supprimer la personnalisation</button></div><div id="regexbox"><label for="sample">Tester ce filtre sur un extrait de journal</label><textarea id="sample" rows="5" placeholder="Collez quelques lignes de journal ici"></textarea><button id="regex">Tester les correspondances</button><pre id="regexresult"></pre></div></div></section>
 <section id="logs" hidden><div class="card"><h2>Journal Fail2ban</h2><button id="logrefresh">Actualiser</button><pre id="logtext"></pre></div></section>
 <section id="backups" hidden><div class="card"><h2>Sauvegardes de configuration</h2><p class="muted">Chaque modification conserve la version précédente. Restaurer teste puis applique cette version.</p><button id="backuprefresh">Actualiser</button><div id="backuplist"></div></div></section>
-<section id="abuse-settings" hidden><div class="card"><h2>Envois automatiques existants</h2><p>Les signalements utilisent Postfix directement, sans webhook. Contrôle toutes les 5 minutes ; rapport quotidien à 08 h, heure configurée. Les historiques et les protections contre les doublons sont conservés.</p><div class="grid">
-<div><label>Signalements par e-mail</label><select id="auto-email_enabled"><option value="true">Activés</option><option value="false">Désactivés</option></select></div>
+<section id="automations" hidden><div class="card"><h2>Automatisations</h2><p>Contrôle AbuseIPDB toutes les 5 minutes ; rapport quotidien à 08 h, heure configurée.</p><div class="grid">
 <div><label>Signalements AbuseIPDB</label><select id="auto-abuseipdb_enabled"><option value="true">Activés</option><option value="false">Désactivés</option></select><small>La clé reste dans le fichier privé de configuration et n’est pas exposée ici.</small></div>
 <div><label>Rapport quotidien par e-mail</label><select id="auto-report_enabled"><option value="true">Activé</option><option value="false">Désactivé</option></select></div>
-<div><label>Bannissements distincts avant signalement</label><input id="auto-min_bans" type="number" min="2" max="100"></div>
+<div><label>Bans distincts avant signalement AbuseIPDB</label><input id="auto-min_bans" type="number" min="2" max="100"></div>
 <div><label>Fenêtre de récidive (heures)</label><input id="auto-window_hours" type="number" min="1" max="24"></div>
-<div><label>Délai entre signalements d’une IP (heures)</label><input id="auto-cooldown_hours" type="number" min="24" max="168"></div>
-<div><label>Expéditeur Postfix</label><input id="auto-sender" type="email"></div><div><label>Destinataire du rapport et adresse de réponse</label><input id="auto-recipient" type="email"></div></div>
-<label>Objet du signalement en anglais · variable {ip}</label><input id="auto-subject"><label>Introduction du signalement en anglais</label><textarea id="auto-message" rows="4"></textarea><p class="muted">Les preuves techniques filtrées et leur pièce jointe sont ajoutées automatiquement. Les réponses HTTP 401/403 seules ne suffisent pas. Aucun renvoi d’ancien signalement lors d’une sauvegarde.</p><button id="auto-save">Enregistrer les automatisations</button> <button id="auto-refresh">Actualiser l’état</button><h3>État des derniers contrôles</h3><pre id="auto-status"></pre><h3>Derniers signalements par e-mail</h3><div id="auto-history"></div><h3>Derniers signalements AbuseIPDB</h3><div id="auto-ipdb"></div><details><summary>Dernier rapport quotidien</summary><pre id="auto-report" style="white-space:pre-wrap"></pre></details></div>
-<details><summary>Réglages auxiliaires et tests (facultatif)</summary><div class="card"><h2>Réglages auxiliaires</h2><p class="muted">Réglages auxiliaires : recherche RDAP de l’interface et tests SMTP. Les envois réels sont pilotés par les automatisations ci-dessus.</p><h3>Recherche des contacts</h3><div class="grid"><div><label for="ab-lookup_enabled">Recherche RDAP</label><select id="ab-lookup_enabled"><option value="true">Activée</option><option value="false">Désactivée</option></select></div><div><label for="ab-min_bans">Bans distincts avant recherche</label><input id="ab-min_bans" type="number" min="1" max="100"></div><div><label for="ab-window_hours">Fenêtre de récidive (heures)</label><input id="ab-window_hours" type="number" min="1" max="168"></div><div><label for="ab-cache_hours">Conservation du résultat (heures)</label><input id="ab-cache_hours" type="number" min="1" max="168"></div><div><label for="ab-retry_minutes">Nouvel essai après erreur (minutes)</label><input id="ab-retry_minutes" type="number" min="1" max="1440"></div></div><p class="muted">Seules les IP publiques sont recherchées. La fenêtre dépend des journaux disponibles, dans la limite des 10 000 dernières lignes. Seule l’IP est transmise au service RDAP.</p><h3>SMTP de test (distinct de Postfix)</h3><div class="grid"><div><label for="ab-smtp_host">Serveur SMTP</label><input id="ab-smtp_host" autocomplete="off" placeholder="smtp.exemple.fr"></div><div><label for="ab-smtp_port">Port</label><input id="ab-smtp_port" type="number" min="1" max="65535"></div><div><label for="ab-smtp_security">Sécurité</label><select id="ab-smtp_security"><option value="starttls">STARTTLS (souvent 587)</option><option value="ssl">TLS direct (souvent 465)</option></select></div><div><label for="ab-smtp_username">Identifiant SMTP</label><input id="ab-smtp_username" autocomplete="off"></div><div><label for="ab-smtp_password">Mot de passe SMTP</label><input id="ab-smtp_password" type="password" autocomplete="new-password" placeholder="Laisser vide pour conserver"><small id="ab-password-status"></small><label><input id="ab-clear-password" type="checkbox" style="width:auto"> Supprimer le mot de passe enregistré</label></div><div><label for="ab-sender">Adresse expéditrice</label><input id="ab-sender" type="email"></div><div><label for="ab-reply_to">Adresse de réponse (facultative)</label><input id="ab-reply_to" type="email"></div><div><label for="ab-test_recipient">Destinataire de test</label><input id="ab-test_recipient" type="email"></div></div><h3>Webhook facultatif — test uniquement</h3><p class="muted">Destination des événements de bannissement, débannissement et des signalements abuse. La configuration est enregistrée ici ; la diffusion automatique reste à raccorder. Le test envoie uniquement un événement fictif en anglais.</p><div class="grid"><div><label for="ab-webhook_url">URL du webhook</label><input id="ab-webhook_url" type="url" autocomplete="off" placeholder="https://exemple.fr/webhook"></div><div><label for="ab-webhook_events">Événements à transmettre</label><select id="ab-webhook_events"><option value="all">Tout : bans, débannissements et abuse</option><option value="bans">Bannissements et débannissements</option><option value="abuse">Signalements abuse</option></select></div><div><label for="ab-webhook_token">Jeton Bearer (facultatif)</label><input id="ab-webhook_token" type="password" autocomplete="new-password" placeholder="Laisser vide pour conserver"><small id="ab-webhook-token-status"></small><label><input id="ab-clear-webhook-token" type="checkbox" style="width:auto"> Supprimer le jeton enregistré</label></div></div><p class="muted">Format : POST JSON. Le jeton reste masqué après sauvegarde. Les redirections sont refusées.</p><button id="ab-webhook-test">Envoyer un événement de test</button><h3>Ancien modèle auxiliaire (non utilisé par les automatismes)</h3><p class="muted">Variables disponibles : {ip}, {jail}, {date}. Le modèle est enregistré pour préparer les signalements ; aucun envoi automatique n’est activé.</p><label for="ab-subject">Objet</label><input id="ab-subject"><label for="ab-message">Message</label><textarea id="ab-message" rows="8"></textarea><div class="row" style="margin-top:18px"><button id="ab-save">Enregistrer les réglages</button><button id="ab-reload">Recharger</button><button id="ab-test">Tester la connexion SMTP</button><button id="ab-send-test">Envoyer un e-mail de test</button></div><p class="muted">Les tests utilisent les réglages enregistrés. Le mot de passe reste masqué après sauvegarde. Utilisez l’accès HTTPS habituel pour saisir vos identifiants.</p></div></details></section>
+<div><label>Délai entre signalements (heures)</label><input id="auto-cooldown_hours" type="number" min="24" max="168"></div>
+<div><label>Expéditeur du rapport quotidien</label><input id="auto-sender" type="email"></div><div><label>Destinataire du rapport quotidien</label><input id="auto-recipient" type="email"></div></div>
+<button id="auto-save">Enregistrer les automatisations</button> <button id="auto-refresh">Actualiser l’état</button><h3>État des derniers contrôles</h3><pre id="auto-status"></pre><h3>Derniers signalements AbuseIPDB</h3><div id="auto-ipdb"></div><details><summary>Dernier rapport quotidien</summary><pre id="auto-report" style="white-space:pre-wrap"></pre></details></div>
+<details><summary>Webhook facultatif — test uniquement</summary><div class="card"><p>Configuration et test manuel uniquement. La diffusion automatique des événements reste à raccorder.</p><label>URL du webhook</label><input id="wh-webhook_url" type="url" placeholder="https://exemple.fr/webhook"><label>Jeton Bearer (facultatif)</label><input id="wh-webhook_token" type="password" autocomplete="new-password" placeholder="Laisser vide pour conserver"><small id="wh-token-status"></small><label><input id="wh-clear-token" type="checkbox" style="width:auto"> Supprimer le jeton enregistré</label><button id="wh-save">Enregistrer les réglages</button> <button id="wh-test">Envoyer un événement de test</button></div></details></section>
 <section id="advanced" hidden><div class="card"><h2>Toutes les commandes Fail2ban</h2><p>Accès aux réglages du service, de la base, des actions et aux autres fonctions disponibles dans cette version.</p><p class="muted">Les changements effectués ici agissent sur le service en cours et peuvent être temporaires. Pour conserver les réglages des jails, utilisez les onglets de configuration. Une commande peut interrompre la protection ou lever des bans.</p><button id="clienthelp">Afficher les commandes disponibles</button><pre id="helptext" hidden></pre><label for="command">Commande Fail2ban, sans le préfixe fail2ban-client</label><input id="command" placeholder="Exemple : get dbpurgeage"><button id="clientrun" style="margin-top:12px">Exécuter</button><pre id="commandresult"></pre></div></section></main><script>
 const token='__TOKEN__', el=id=>document.getElementById(id);let inventory={}, jf=null,ff=null;
 async function api(q){const r=await fetch('/admin/api',{method:'POST',headers:{'Content-Type':'application/json','X-Fail2ban-Token':token},body:JSON.stringify(q)});const d=await r.json();if(!r.ok||d.error||d.ok===false)throw Error(d.error||d.output||'Opération refusée');return d;}
 let adminNavigationPending=null;
 function flushAdminNavigation(){if(!adminNavigationPending)return;const b=document.querySelector('nav button[data-tab="'+adminNavigationPending+'"]');if(b&&!b.disabled){adminNavigationPending=null;b.click();}}
-window.addEventListener('message',event=>{if(event.origin!==location.origin||event.source!==parent||event.data?.type!=='fcp-admin-navigate')return;if(!['overview','jails','files','logs','backups','abuse-settings','advanced'].includes(event.data.section))return;adminNavigationPending=event.data.section;flushAdminNavigation();});
+window.addEventListener('message',event=>{if(event.origin!==location.origin||event.source!==parent||event.data?.type!=='fcp-admin-navigate')return;if(!['overview','jails','files','logs','backups','automations','advanced'].includes(event.data.section))return;adminNavigationPending=event.data.section;flushAdminNavigation();});
 async function run(fn){document.querySelectorAll('button').forEach(b=>b.disabled=true);try{el('message').textContent='Opération en cours…';let d=await fn();el('message').textContent=d?.output||'Terminé.';if(d?.backup)el('message').textContent+='\nSauvegarde : '+d.backup;return d;}catch(e){el('message').textContent=e.message;}finally{document.querySelectorAll('button').forEach(b=>b.disabled=false);flushAdminNavigation();}}
-let abuseRevision=0;
-const autoFields=['email_enabled','abuseipdb_enabled','report_enabled','min_bans','window_hours','cooldown_hours','sender','recipient','subject','message'];let autoRevision=null;
+let webhookRevision=0;
+const autoFields=['abuseipdb_enabled','report_enabled','min_bans','window_hours','cooldown_hours','sender','recipient'];let autoRevision=null;
 function autoDate(v){return v?new Date(v*1000).toLocaleString('fr-FR',{timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone}):'indisponible';}
 const autoLabels={submitted:'Remis au service d’envoi',uncertain:'Confirmation incertaine : renvoi bloqué',rejected:'Refusé',disabled:'Désactivé',ready:'Prêt',insufficient_evidence:'Preuves insuffisantes',manual_required:'Traitement manuel requis',no_contact:'Contact absent'};
 function autoRows(id,rows){const target=el(id);target.replaceChildren();if(!rows.length){target.textContent='Aucun signalement enregistré.';return;}for(const r of rows){const p=document.createElement('p');p.textContent=[r.ip,autoLabels[r.status]||r.status,autoDate(r.submitted_at),(r.contacts||[]).join(', ')].filter(Boolean).join(' · ');target.append(p);}}
-async function loadAutomation(){const d=await api({op:'automation_read'});autoRevision=d.revision;for(const k of autoFields)el('auto-'+k).value=String(d.settings[k]);let lines=[];for(const [k,label] of [['abuse','E-mails abuse'],['abuseipdb','AbuseIPDB']]){const s=d.states[k]||{};lines.push(label+' : dernier contrôle '+autoDate(s.checked_at)+' · '+(autoLabels[s.status]||((s.enabled===false)?'Désactivé':'Contrôle effectué'))+' · '+(s.submitted||0)+' remis lors du dernier contrôle'+((s.errors||[]).length?' · '+s.errors.length+' erreur(s)':''));if(s.checked_at&&Date.now()/1000-s.checked_at>900)lines.push('Attention : ce contrôle date de plus de 15 minutes.');}lines.push('Rapport généré : '+autoDate(d.report_time));el('auto-status').textContent=lines.join('\n');autoRows('auto-history',d.history);autoRows('auto-ipdb',d.states.abuseipdb?.history||[]);el('auto-report').textContent=d.report;return {output:d.output};}
+async function loadAutomation(){const d=await api({op:'automation_read'});autoRevision=d.revision;for(const k of autoFields)el('auto-'+k).value=String(d.settings[k]);let lines=[];for(const [k,label] of [['abuseipdb','AbuseIPDB']]){const s=d.states[k]||{};lines.push(label+' : dernier contrôle '+autoDate(s.checked_at)+' · '+(autoLabels[s.status]||((s.enabled===false)?'Désactivé':'Contrôle effectué'))+' · '+(s.submitted||0)+' remis lors du dernier contrôle'+((s.errors||[]).length?' · '+s.errors.length+' erreur(s)':''));if(s.checked_at&&Date.now()/1000-s.checked_at>900)lines.push('Attention : ce contrôle date de plus de 15 minutes.');}lines.push('Rapport généré : '+autoDate(d.report_time));el('auto-status').textContent=lines.join('\n');autoRows('auto-ipdb',d.states.abuseipdb?.history||[]);el('auto-report').textContent=d.report;return {output:d.output};}
 el('auto-refresh').onclick=()=>run(loadAutomation);el('auto-save').onclick=()=>run(async()=>{const settings={};for(const k of autoFields){let v=el('auto-'+k).value;if(k.endsWith('_enabled'))v=v==='true';else if(['min_bans','window_hours','cooldown_hours'].includes(k))v=Number(v);settings[k]=v;}const d=await api({op:'automation_save',revision:autoRevision,settings});await loadAutomation();return d;});
 
-const abuseFields=['webhook_url','webhook_events','lookup_enabled','min_bans','window_hours','cache_hours','retry_minutes','smtp_host','smtp_port','smtp_security','smtp_username','sender','reply_to','test_recipient','subject','message'];
-function applyAbuse(d){abuseRevision=d.revision;for(const key of abuseFields)el('ab-'+key).value=String(d.settings[key]);el('ab-webhook_token').value='';el('ab-clear-webhook-token').checked=false;el('ab-webhook-token-status').textContent=d.webhook_token_configured?'Jeton enregistré.':'Aucun jeton enregistré.';el('ab-smtp_password').value='';el('ab-clear-password').checked=false;el('ab-password-status').textContent=d.password_configured?'Mot de passe enregistré.':'Aucun mot de passe enregistré.';}
-async function loadAbuse(){const d=await api({op:'abuse_settings_read'});applyAbuse(d);return {output:'Réglages abuse et e-mail chargés.'};}
-el('ab-reload').onclick=()=>run(loadAbuse);
-el('ab-save').onclick=()=>run(async()=>{const settings={};for(const key of abuseFields){let value=el('ab-'+key).value;if(key==='lookup_enabled')value=value==='true';else if(['min_bans','window_hours','cache_hours','retry_minutes','smtp_port'].includes(key))value=Number(value);settings[key]=value;}settings.webhook_token=el('ab-webhook_token').value;settings.smtp_password=el('ab-smtp_password').value;const d=await api({op:'abuse_settings_save',revision:abuseRevision,settings,clear_webhook_token:el('ab-clear-webhook-token').checked,clear_password:el('ab-clear-password').checked});applyAbuse(d);return d;});
-el('ab-webhook-test').onclick=()=>run(async()=>{const d=await api({op:'abuse_settings_read'});if(!d.settings.webhook_url)throw Error('Enregistrez une URL webhook.');if(!confirm('Envoyer un événement de test à '+d.settings.webhook_url+' ?'))return {output:'Test annulé.'};return api({op:'webhook_test',confirm:true});});
-el('ab-test').onclick=()=>run(()=>api({op:'abuse_smtp_test'}));
-el('ab-send-test').onclick=()=>run(async()=>{const d=await api({op:'abuse_settings_read'});if(!d.settings.test_recipient)throw Error('Enregistrez un destinataire de test.');if(!confirm('Envoyer un e-mail de test à '+d.settings.test_recipient+' avec les réglages enregistrés ?'))return {output:'Envoi annulé.'};return api({op:'abuse_smtp_send_test',confirm:true});});
+function applyWebhook(d){webhookRevision=d.revision;el('wh-webhook_url').value=d.settings.webhook_url;el('wh-webhook_token').value='';el('wh-clear-token').checked=false;el('wh-token-status').textContent=d.webhook_token_configured?'Jeton enregistré.':'Aucun jeton enregistré.';}
+async function loadWebhook(){const d=await api({op:'webhook_settings_read'});applyWebhook(d);return {output:'Réglages webhook chargés.'};}
+el('wh-save').onclick=()=>run(async()=>{const d=await api({op:'webhook_settings_save',revision:webhookRevision,settings:{webhook_url:el('wh-webhook_url').value,webhook_token:el('wh-webhook_token').value,webhook_events:'bans'},clear_webhook_token:el('wh-clear-token').checked});applyWebhook(d);return d;});
+el('wh-test').onclick=()=>run(async()=>{const d=await api({op:'webhook_settings_read'});if(!d.settings.webhook_url)throw Error('Enregistrez une URL webhook.');if(!confirm('Envoyer un événement de test à '+d.settings.webhook_url+' ?'))return {output:'Test annulé.'};return api({op:'webhook_test',confirm:true});});
 
 function options(id,files){let s=el(id),previous=s.value;s.replaceChildren();for(const f of files){let o=document.createElement('option');o.value=f.name;o.textContent=f.name+(f.custom?' · personnalisé':' · fourni par Fail2ban');s.append(o);}if([...s.options].some(o=>o.value===previous))s.value=previous;}
 async function overview(){el('servicesummary').textContent='État du service : vérification en cours…';let d;try{d=await api({op:'overview'});}catch(e){el('servicesummary').textContent='État du service : indisponible (arrêté ou inaccessible).';throw e;}inventory=d.files;el('service').textContent=d.status;let jailMatch=d.status.match(/Jail list:\s*([^\n]+)/);el('servicesummary').textContent='État du service : actif. Protections actives : '+(jailMatch?jailMatch[1].trim():'aucune')+'.';el('version').textContent=d.version;options('jailfile',inventory.jail);fileOptions();el('filterlist').replaceChildren();for(let f of inventory.filter){let o=document.createElement('option');o.value=f.name.replace(/\.(conf|local)$/,'');el('filterlist').append(o);}return {output:'État actualisé.'};}
@@ -1524,7 +1317,7 @@ async function saveFile(op){if(!ff)throw Error('Ouvrez ou créez un fichier');le
 async function removeFile(file){if(!file)throw Error('Ouvrez un fichier');if(!confirm('Supprimer '+file.name+' et appliquer ? La protection correspondante peut être retirée.'))return {output:'Annulé.'};let d=await api({op:'delete',kind:file.kind||'jail',name:file.name,hash:file.hash});await overview();el('jailpanel').hidden=true;return d;}
 async function backups(){let d=await api({op:'backups'});el('backuplist').replaceChildren();for(let x of d.items){let p=document.createElement('div');p.className='card';let label=document.createElement('p');label.textContent=x.id;let b=document.createElement('button');b.textContent='Restaurer';b.onclick=()=>run(async()=>{if(!confirm('Restaurer la version précédente de '+x.name+' ?'))return {output:'Annulé.'};let current=await api({op:'read',kind:x.kind,name:x.name});let result=await api({op:'restore',kind:x.kind,name:x.name,hash:current.hash,backup:x.id});await overview();await backups();return result;});p.append(label,b);el('backuplist').append(p);}if(!d.items.length)el('backuplist').textContent='Aucune modification enregistrée depuis cette interface.';return {output:'Sauvegardes actualisées.'};}
 async function logs(){let d=await api({op:'logs'});el('logtext').textContent=d.output;return {output:'Journal actualisé.'};}
-for(let b of document.querySelectorAll('[data-tab]'))b.onclick=()=>{if(parent!==window)parent.postMessage({type:'fcp-admin-section',section:b.dataset.tab},location.origin);for(let s of document.querySelectorAll('main>section'))s.hidden=s.id!==b.dataset.tab;for(let x of document.querySelectorAll('[data-tab]'))x.classList.toggle('active',x===b);if(b.dataset.tab==='abuse-settings')run(async()=>{await loadAutomation();return loadAbuse();});if(b.dataset.tab==='logs')run(logs);if(b.dataset.tab==='backups')run(backups);};
+for(let b of document.querySelectorAll('[data-tab]'))b.onclick=()=>{if(parent!==window)parent.postMessage({type:'fcp-admin-section',section:b.dataset.tab},location.origin);for(let s of document.querySelectorAll('main>section'))s.hidden=s.id!==b.dataset.tab;for(let x of document.querySelectorAll('[data-tab]'))x.classList.toggle('active',x===b);if(b.dataset.tab==='automations')run(async()=>{await loadAutomation();return loadWebhook();});if(b.dataset.tab==='logs')run(logs);if(b.dataset.tab==='backups')run(backups);};
 el('refresh').onclick=()=>run(overview);el('test').onclick=()=>run(()=>api({op:'test'}));el('reload').onclick=()=>run(async()=>{if(!confirm('Tester puis recharger toutes les jails ?'))return {output:'Annulé.'};let d=await api({op:'reload'});await overview();return d;});el('all').onclick=()=>run(async()=>{if(prompt('Cette opération lève tous les bans. Tapez DEBANNIR pour confirmer.')!=='DEBANNIR')return {output:'Annulé.'};let d=await api({op:'unban_all',confirm:'DEBANNIR'});await overview();return d;});
 el('openjail').onclick=()=>run(openJail);el('newjail').onclick=()=>run(async()=>{let jail=prompt('Nom de la nouvelle jail (lettres, chiffres, tirets)');if(!jail)return {output:'Annulé.'};if(!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/.test(jail))throw Error('Nom invalide');let name=jail+'.local';let d=await api({op:'read',kind:'jail',name});if(d.content)throw Error('Ce fichier existe déjà.');jf={name,hash:d.hash,custom:false};el('jailname').value=jail;el('jailname').readOnly=true;el('jailtitle').textContent=name;el('jailraw').value='['+jail+']\nenabled = false\n';setFields(el('jailraw').value,jail);el('jailpanel').hidden=false;el('jailstatus').textContent='Nouvelle jail, pas encore enregistrée.';return {output:'Complétez les paramètres avant activation.'};});
 el('savejail').onclick=()=>run(()=>saveJail('save'));el('validatejail').onclick=()=>run(()=>saveJail('validate'));el('saveraw').onclick=()=>run(()=>saveJail('save',true));el('deletejail').onclick=()=>run(()=>removeFile(jf));el('jailrefresh').onclick=()=>run(async()=>{await jailState();return {output:'État actualisé.'};});el('restartjail').onclick=()=>run(async()=>{if(!confirm('Recharger cette jail ? Sa protection peut être brièvement interrompue.'))return {output:'Annulé.'};let d=await api({op:'restart_jail',jail:el('jailname').value});await jailState();return d;});

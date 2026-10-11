@@ -17,7 +17,7 @@ Both are excluded from Git. The installer preserves existing files.
 | `web_jail`, `web_log` | Web jail and access log inside Fail2ban |
 | `sftp_container`, `sftp_port` | Optional SFTP container and public port |
 | `postfix` | Existing Postfix container providing sendmail |
-| `sender`, `recipient` | Initial email settings; subsequently managed through FCP |
+| `sender`, `recipient` | Daily summary sender and recipient; subsequently managed through FCP |
 | `message_id_domain` | Message-ID domain; localhost by default |
 | `output` | Internal state directory; retain `/app/automation-state` for supplied Compose |
 
@@ -41,7 +41,7 @@ DB-IP attribution in the interface.
 ## Automations
 
 Configure real SSH/web jails, log sources, sender and Postfix container before
-activation. Enable the desired email/report/AbuseIPDB settings in FCP, then
+activation. Enable the desired daily-summary/AbuseIPDB settings in FCP, then
 start the optional worker with `docker compose --profile automations up -d`.
 Do not run this worker alongside an existing scheduler for the same tasks.
 
@@ -57,8 +57,7 @@ AbuseIPDB needs `config/abuseipdb.key` with mode 600 and only the key. SSH
 classification depends on configured SSH filters. Web reports require known
 scan-path evidence; HTTP 401/403 responses alone are insufficient.
 
-Auxiliary SMTP and webhook tests do not change the Postfix transport used by
-automatic reports. Automatic webhook event delivery is not implemented.
+The optional webhook supports manual configuration tests only. Automatic event delivery is not implemented.
 
 [Authentication, HTTPS and local HTTP testing](authentication.md)
 

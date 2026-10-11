@@ -21,7 +21,7 @@ collecteurs. Ces deux fichiers sont privés et exclus de Git.
 | `web_jail`, `web_log` | Jail web et journal d’accès **dans Fail2ban**, pour la corrélation AbuseIPDB |
 | `service_description` | Description exacte des services et ports publics, jointe aux preuves |
 | `postfix` | Conteneur du relais mail existant, avec `/usr/sbin/sendmail` |
-| `sender`, `recipient` | Valeurs initiales ; ensuite configurées dans FCP, destinataire aussi utilisé comme Reply-To des signalements |
+| `sender`, `recipient` | Expéditeur et destinataire du rapport quotidien, ensuite configurés dans FCP |
 | `message_id_domain` | Domaine des Message-ID ; localhost par défaut, adapter à son domaine |
 | `output` | Répertoire d’état interne, conserver `/app/automation-state` avec Compose fourni |
 
@@ -44,40 +44,27 @@ automatiquement le journal système de l’hôte. Le journal indiqué dans
 sont lus depuis les journaux Docker timestampés du conteneur configuré.
 Un journal absent ne devient jamais une preuve inventée.
 
-## Automatisations et e-mails
+## Automatisations
 
 1. Configurer le relais Postfix, les adresses et les sources de preuves.
 2. Renseigner les jails SSH et web réellement correspondantes.
 3. Lancer `docker compose --profile automations up -d --build`.
-4. Ouvrir Configuration → Automatisations et e-mails et activer les fonctions
-   voulues. Ces activations autorisent les envois aux contacts RDAP des IP.
+4. Ouvrir Configuration → Automatisations et activer les fonctions
+   voulues : rapport quotidien et/ou AbuseIPDB.
 
 Le worker vérifie les récidives toutes les cinq minutes. Le rapport est tenté
 une fois par jour après 08 h, dans le fuseau configuré. Après une interruption,
 un rapport du jour peut être tenté au redémarrage. Une tentative de rapport
 quotidien en échec n’est pas automatiquement répétée le même jour.
 
-Les signalements e-mail demandent au moins deux bans distincts et des preuves
-supplémentaires. Les états de soumission incertaine bloquent les renvois
-automatiques. Conserver `state/` lors des mises à jour pour préserver cet état.
-La pièce jointe distingue observations, échantillons et limites de collecte ;
-les noms d’utilisateurs, mots de passe, paramètres d’URL et chemins arbitraires
-sont exclus.
+Conserver `state/` lors des mises à jour : les soumissions API incertaines bloquent les renvois automatiques. Les preuves excluent les noms d’utilisateurs, mots de passe, paramètres d’URL et chemins arbitraires.
 
 AbuseIPDB nécessite `config/abuseipdb.key` (mode 600), avec uniquement la clé.
 La classification SSH dépend de `ssh_jails` et des filtres de l’opérateur ; les
 signalements web nécessitent une corrélation avec des chemins de scan connus.
 Les seuls codes HTTP 401/403 ne suffisent pas.
 
-Les routes de contacts facultatives se configurent dans
-`config/abuse-routing.json`, par exemple :
-
-```json
-{"blocked_contacts": {}}
-```
-
-Les réglages SMTP et webhook auxiliaires de l’interface ne changent pas le
-transport Postfix des envois automatiques.
+Le webhook facultatif permet uniquement un test manuel. La diffusion automatique des événements n’est pas implémentée.
 
 ## Géolocalisation
 

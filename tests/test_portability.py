@@ -1,4 +1,4 @@
-"""Offline tests: no Docker socket, mail, RDAP or AbuseIPDB connection."""
+"""Offline tests: no Docker socket, mail or AbuseIPDB connection."""
 import ast
 import base64
 import datetime as dt
@@ -22,7 +22,7 @@ os.environ.update(FCP_ADMIN_PASSWORD='test-password-longer-than-twenty',
     FCP_AUTH_DATABASE=SANDBOX.name+'/data/auth.sqlite3',
     FCP_AUTOMATION_FILE=SANDBOX.name+'/data/automation.json',
     FCP_CONFIG=SANDBOX.name+'/config.json', FCP_FAIL2BAN_CONTAINER='isolated-f2b',
-    FCP_DATABASE=SANDBOX.name+'/data/history.sqlite3', FCP_ABUSE_SETTINGS=SANDBOX.name+'/data/auxiliary.sqlite3', FCP_HTTP_LOG=SANDBOX.name+'/missing-access.log')
+    FCP_DATABASE=SANDBOX.name+'/data/history.sqlite3', FCP_WEBHOOK_SETTINGS=SANDBOX.name+'/data/auxiliary.sqlite3', FCP_HTTP_LOG=SANDBOX.name+'/missing-access.log')
 Path(os.environ['FCP_CONFIG']).write_text(json.dumps({'container':'isolated-f2b',
     'output':SANDBOX.name+'/state','ssh_port':2200,'ssh_log':'/custom/ssh.log',
     'ssh_jails':['custom-ssh'],'sftp_container':'','http_enabled':False}))
@@ -72,7 +72,7 @@ class PortabilityTests(unittest.TestCase):
 
     def test_default_disabled_and_preserved(self):
         raw=runtime.settings_path().read_bytes();settings=json.loads(raw)
-        self.assertFalse(settings['email_enabled']);self.assertFalse(settings['report_enabled']);self.assertFalse(settings['abuseipdb_enabled'])
+        self.assertFalse(settings['report_enabled']);self.assertFalse(settings['abuseipdb_enabled'])
         runtime.ensure_settings();self.assertEqual(raw,runtime.settings_path().read_bytes())
         self.assertEqual(runtime.settings_path().stat().st_mode & 0o777,0o600)
 
@@ -88,10 +88,10 @@ class PortabilityTests(unittest.TestCase):
             values=dict(current['settings'])
             self.assertNotIn('jails',values)
             saved=ui.automation_save({'revision':current['revision'],'settings':values})
-            self.assertFalse(saved['settings']['email_enabled'])
+            self.assertNotIn('email_enabled',saved['settings'])
             with self.assertRaises(ValueError):
                 ui.automation_save({'revision':'stale','settings':values})
-            values['email_enabled']=True
+            values['report_enabled']=True
             with self.assertRaises(ValueError):
                 ui.automation_save({'revision':saved['revision'],'settings':values})
             self.assertEqual(runtime.settings_path().stat().st_mode&0o777,0o600)
@@ -114,7 +114,7 @@ class PortabilityTests(unittest.TestCase):
             if args[0]=='docker':self.assertIn('isolated-f2b',args)
 
     def test_ssh_evidence_without_http_or_sftp(self):
-        collector=load_script('fail2ban-abuse.py');now=time.time()
+        collector=load_script('evidence.py');now=time.time()
         log=dt.datetime.fromtimestamp(now-10,dt.timezone.utc).isoformat()+' server sshd: Failed password for invalid user PRIVATE from 8.8.8.8 port 44444 ssh2\n'
         with patch('subprocess.run',return_value=subprocess.CompletedProcess([],0,log,'')) as run:
             evidence=collector.collect_evidence('8.8.8.8',now)
@@ -124,15 +124,9 @@ class PortabilityTests(unittest.TestCase):
         self.assertFalse(evidence['http_summary']['available'])
         text=collector.evidence_text('8.8.8.8',evidence)
         self.assertIn('TCP 2200',text);self.assertNotIn('PRIVATE',text);self.assertNotIn('2222',text)
-        cfg=runtime.load_config();cfg.update(sender='sender@example.org',recipient='reply@example.org')
-        record={'bans':{'one':{'time':now-30,'jails':['custom-ssh']}},'found':1,'detections':[]}
-        msg=collector.message(cfg,'8.8.8.8',record,['abuse@example.net'],now,evidence)
-        attachment=list(msg.iter_attachments())[0].get_payload(decode=True)
-        self.assertIn(hashlib.sha256(attachment).hexdigest(),msg.get_body(preferencelist=('plain',)).get_content())
-        self.assertIn('@localhost>',msg['Message-ID'])
 
     def test_duplicates_and_uncertain_blocked(self):
-        collector=load_script('fail2ban-abuse.py');now=time.time()
+        collector=load_script('evidence.py');now=time.time()
         record={'bans':{'one':{'time':now-30,'jails':['custom-ssh']},'two':{'time':now-10,'jails':['custom-ssh']}}}
         for status in ('submitting','uncertain'):
             self.assertFalse(collector.eligible(record,{'status':status},now))
@@ -147,7 +141,7 @@ class PortabilityTests(unittest.TestCase):
         self.assertIsNone(worker.qualified(web,[]))
 
     def test_http_privacy_and_exact_source(self):
-        collector=load_script('fail2ban-abuse.py');tree=ast.parse((ROOT/'automation/fail2ban-abuse.py').read_text())
+        collector=load_script('evidence.py');tree=ast.parse((ROOT/'automation/evidence.py').read_text())
         function=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='collect_evidence')
         query=ast.literal_eval(next(n.value for n in function.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='query' for t in n.targets)))
         with tempfile.TemporaryDirectory() as tmp:
@@ -158,6 +152,44 @@ class PortabilityTests(unittest.TestCase):
             result=subprocess.run([sys.executable,'-c',query,json.dumps(['8.8.8.8',now,['/.env'],24])],capture_output=True,text=True,check=True)
             data=json.loads(result.stdout);self.assertEqual(data['total'],2);self.assertEqual(data['scan_count'],1)
             self.assertNotIn('PRIVATE',result.stdout);self.assertNotIn('/private',result.stdout)
+
+    def test_removed_delivery_cannot_be_reenabled(self):
+        original=runtime.settings_path().read_bytes()
+        try:
+            legacy=json.loads(original);legacy.update(email_enabled=True,subject='legacy',message='legacy')
+            runtime.settings_path().write_text(json.dumps(legacy))
+            current=ui.automation_read()
+            self.assertNotIn('email_enabled',current['settings'])
+            self.assertNotIn('subject',current['settings'])
+            self.assertNotIn('abuse',current['states'])
+            self.assertNotIn('auto-email_enabled',ui.ADMIN_HTML)
+            self.assertNotIn('mailto:',ui.ADMIN_HTML)
+            values=dict(current['settings'],email_enabled=True)
+            with self.assertRaises(ValueError):
+                ui.automation_save({'revision':current['revision'],'settings':values})
+            headers={'X-Fail2ban-Token':ui.admin_token}
+            for op in ('abuse_smtp_test','abuse_smtp_send_test','abuse_settings_save'):
+                with patch('ui.f2b.require_write'),patch('subprocess.run') as external:
+                    response=self.client.post('/admin/api',headers=headers,json={'op':op,'confirm':True})
+                self.assertEqual(response.status_code,400)
+                external.assert_not_called()
+            self.assertEqual(self.client.post('/abuse/status',json={'ips':['8.8.8.8']}).status_code,404)
+        finally:
+            runtime.settings_path().write_bytes(original)
+
+    def test_webhook_settings_preserve_token_and_revision(self):
+        path=Path(ui.WEBHOOK_SETTINGS_PATH)
+        path.unlink(missing_ok=True)
+        try:
+            d=ui.webhook_settings_save({'revision':0,'settings':{'webhook_url':'https://example.org/hook','webhook_token':'private-token','webhook_events':'bans'}})
+            self.assertNotIn('webhook_token',d['settings'])
+            self.assertTrue(d['webhook_token_configured'])
+            ui.webhook_settings_save({'revision':d['revision'],'settings':{'webhook_token':''}})
+            self.assertEqual(ui.webhook_settings_read()[0]['webhook_token'],'private-token')
+            with self.assertRaises(ValueError):
+                ui.webhook_settings_save({'revision':0,'settings':{'webhook_url':''}})
+        finally:
+            path.unlink(missing_ok=True)
 
     def test_installer_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:

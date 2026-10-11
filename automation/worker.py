@@ -26,7 +26,6 @@ def main():
     marker = state / 'daily-attempt.json'
     zone = ZoneInfo(cfg['timezone'])
     while True:
-        run('fail2ban-abuse.py', '--send')
         run('fail2ban-abuseipdb.py')
         now = dt.datetime.now(zone)
         previous = json.loads(marker.read_text()) if marker.exists() else {}

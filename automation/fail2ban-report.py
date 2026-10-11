@@ -147,27 +147,6 @@ def render(cfg, data):
     section('Top 10 des IP bannies', table(['IP','Bans 24 h','Jails concernées'], [(ip,n,', '.join(sorted({j for j,p in data['bans'] if p==ip}))) for ip,n in counts.most_common(10)]) if counts else '<p>Aucun bannissement observé dans les journaux disponibles.</p>')
     section('Récidivistes sur 24 h', table(['IP','Nombre de bans'], repeats) if repeats else '<p>Aucune IP bannie plusieurs fois sur la période disponible.</p>')
     section('IP actuellement bannies', table(['Jail','IP'], [(j,ip) for j,ips in data['states'].items() if ips for ip in ips]) if current else '<p>Aucune IP connue actuellement bannie ; consulter les alertes si un état est indisponible.</p>')
-    abuse_text = 'Automatisation abuse : état indisponible.'
-    try:
-        abuse_dir = Path(cfg['output']) / 'abuse'
-        abuse = json.loads((abuse_dir / 'latest.json').read_text())
-        abuse_state = json.loads((abuse_dir / 'state.json').read_text())
-        checked = dt.datetime.fromtimestamp(abuse['checked_at'], UTC)
-        recent = [item for item in abuse_state.get('history', []) if data['start'].timestamp() <= item['submitted_at'] <= data['end'].timestamp()]
-        stale = (data['end'] - checked).total_seconds() > 900
-        label = 'Active' if abuse.get('enabled') and not stale else 'À contrôler'
-        abuse_text = f'Automatisation abuse : {label}. Dernier contrôle : {checked.astimezone(zone).strftime("%d/%m/%Y %H:%M")}. {len(recent)} signalement(s) remis à Postfix sur 24 h.'
-        rows_abuse = [(item['ip'], ', '.join(item['contacts']), item['bans'], dt.datetime.fromtimestamp(item['submitted_at'], UTC).astimezone(zone).strftime('%d/%m %H:%M')) for item in recent]
-        problems = [f"{ip} : soumission incertaine, nouvel envoi bloqué pour éviter un doublon" for ip, item in abuse_state.get('reports', {}).items() if item.get('status') in ('uncertain', 'submitting')]
-        problems += [f"{item['ip']} : {item['error']}" for item in abuse.get('errors', [])]
-        missing = [item['ip'] for item in abuse.get('results', []) if item.get('status') == 'no_contact']
-        if missing:
-            problems.append('Contact abuse absent du registre : ' + ', '.join(missing))
-        abuse_text += '\n' + '\n'.join(f"{row[0]} → {row[1]} : {row[2]} bans, {row[3]}" for row in rows_abuse)
-        abuse_text += '\n' + '\n'.join(problems)
-        section('Signalements abuse automatiques', '<p>'+esc(abuse_text.split('\n')[0])+'</p><p>Seuil : 2 bans distincts sur 24 h · Contrôle toutes les 5 min · Un signalement maximum par IP sur 24 h, avec nouveau ban requis. Une remise à Postfix ne prouve pas la réception par le destinataire.</p>' + (table(['IP','Contact abuse','Bans','Envoi · Paris'], rows_abuse) if rows_abuse else '<p>Aucun signalement remis à Postfix sur cette période.</p>') + ('<p>'+ '<br>'.join(esc(p) for p in problems)+'</p>' if problems else ''))
-    except (OSError, ValueError, KeyError, TypeError):
-        section('Signalements abuse automatiques', '<p>État indisponible : vérifier fail2ban-abuse.service.</p>')
     section('Autres erreurs et avertissements', '<p>'+str(len(other_log_events))+' autre(s) événement(s) sur 24 h.</p>' + (table(['Derniers événements (20 maximum)'], [(x,) for x in other_log_events[-20:]]) if other_log_events else '<p>Aucun autre avertissement ni erreur observé dans les journaux disponibles.</p>'))
     if removed_log_events:
         section('Détails techniques', '<p style="font-size:13px;color:#64748b">Événements bruts liés aux anciens fichiers Docker, conservés pour le diagnostic.</p>'+table(['Événements techniques (20 maximum)'], [(x,) for x in removed_log_events[-20:]]))
@@ -177,7 +156,6 @@ def render(cfg, data):
     plain += '\n'.join(data['warnings'])+'\n\nJails (état, bans 24h, détections, bans actifs):\n'+'\n'.join(' | '.join(map(str,row)) for row in rows)
     plain += '\n\nTop IP :\n'+'\n'.join(f'{ip}: {n}' for ip,n in counts.most_common(10))+'\n\nRécidivistes :\n'+'\n'.join(f'{ip}: {n}' for ip,n in repeats)
     plain += '\n\nIP actuellement bannies :\n'+'\n'.join(j+': '+(', '.join(ips) if ips is not None else 'indisponible') for j,ips in data['states'].items())
-    plain += '\n\n' + abuse_text
     if removed_log_events:
         plain += '\n\nSURVEILLANCE DOCKER À CONTRÔLER\n'+str(len(removed_log_events))+' fichier(s) de logs Docker retiré(s) de la surveillance.\nCause probable : conteneurs recréés ou mis à jour.\nConséquence : Fail2ban a cessé de lire ces anciens chemins ; cela ne prouve ni une attaque ni une panne générale.\nContrôle conseillé : vérifier que les jails actives suivent les conteneurs actuels.'
     plain += '\n\nAutres erreurs / avertissements :\n'+('\n'.join(other_log_events[-20:]) if other_log_events else 'Aucun autre événement.')

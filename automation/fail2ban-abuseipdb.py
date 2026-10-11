@@ -15,7 +15,7 @@ import urllib.error
 from pathlib import Path
 from runtime import load_config, settings_path, ensure_settings
 
-spec = importlib.util.spec_from_file_location('collector', Path(__file__).with_name('fail2ban-abuse.py'))
+spec = importlib.util.spec_from_file_location('collector', Path(__file__).with_name('evidence.py'))
 collector = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(collector)
 

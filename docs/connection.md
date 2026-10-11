@@ -37,10 +37,10 @@ To run FCP without Docker, install its Python requirements in a virtual
 environment, configure a supervised Gunicorn process using the supplied config,
 set PYTHONPATH to `src`, and use writable persistent paths for
 `FCP_AUTH_DATABASE`, `FCP_CONNECTION_FILE`, `FCP_AUTOMATION_FILE`, `FCP_DATABASE`,
-`FCP_ABUSE_SETTINGS`, plus a private `FCP_CONFIG`. Existing authentication and
+`FCP_WEBHOOK_SETTINGS`, plus a private `FCP_CONFIG`. Existing authentication and
 network restrictions still apply. See the [French deployment details](connection.fr.md).
 
-External abuse schedulers and the optional reporting worker retain their own
+External AbuseIPDB schedulers and the optional reporting worker retain their own
 connection settings. This form selects the web administration target, without
 moving external jobs, report history or duplicate protection to another server.
 Remote SSH administration is not part of this version.

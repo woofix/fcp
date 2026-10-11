@@ -3,7 +3,7 @@
 [English](README.md) · [Français](README.fr.md)
 
 Web administration for Fail2ban: jails, filters, actions, persistent HTTP
-history, a world IP map and abuse reports with supporting evidence.
+history, a world IP map and optional AbuseIPDB reporting.
 
 ## Install
 
@@ -51,10 +51,9 @@ their original content. French is the default.
 - World map: supply `geo/city.mmdb` or use the DB-IP update in the interface.
   IPs without coordinates stay in the list. Databases are not bundled.
 - Automations: optional `automations` Compose profile; disabled by default.
-- Email reports: existing Postfix container and `sendmail`, with UTC evidence
-  and a verifiable attachment.
+- Daily summary: delivered to your own address through an existing Postfix container.
 - AbuseIPDB: private local API-key file, never committed.
-- Auxiliary SMTP and webhook settings: manual tests. Automatic webhook event
+- Optional webhook settings: manual tests. Automatic webhook event
   delivery is not implemented in this version.
 
 Back up `data`, `state`, `config`, `geo` and `logs`; these are excluded from Git.

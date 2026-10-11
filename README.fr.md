@@ -3,7 +3,7 @@
 [English](README.md) · [Français](README.fr.md)
 
 Interface web de gestion de Fail2ban : vue d’ensemble, jails, filtres, actions,
-historique, carte mondiale des IP et signalements abuse avec preuves jointes.
+historique, carte mondiale des IP et signalements facultatifs à AbuseIPDB.
 
 FCP peut administrer un **Fail2ban existant dans Docker ou installé directement
 sur Linux**. Le choix se fait dans **Administration de l’application → Connexion
@@ -52,13 +52,10 @@ exclus de Git. Leur sauvegarde est à la charge de l’opérateur.
   non localisée. Les bases ne sont pas incluses.
 - **Automatisations** : profil facultatif `automations`, contrôles désactivés
   par défaut. Voir [Configuration](docs/configuration.md) avant de les activer.
-- **E-mails automatiques** : remise à un conteneur Postfix existant via
-  `sendmail`, avec extrait normalisé, dates UTC et pièce jointe vérifiable.
+- **Rapport quotidien** : synthèse envoyée à votre propre adresse via un conteneur Postfix existant.
 - **AbuseIPDB** : facultatif, clé privée dans un fichier local ; aucune clé
   n’est intégrée au dépôt.
-- **Webhook/SMTP auxiliaires** : configuration et tests manuels. Le webhook
-  n’est pas le transport des signalements automatiques ; aucun événement
-  automatique n’est envoyé au webhook dans cette version.
+- **Webhook facultatif** : configuration et test manuel ; aucun événement automatique n’est envoyé dans cette version.
 
 ## Validation
 

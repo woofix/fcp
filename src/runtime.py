@@ -38,11 +38,9 @@ def ensure_settings():
     path.parent.mkdir(parents=True, exist_ok=True)
     cfg = load_config()
     defaults = {
-        'email_enabled': False, 'abuseipdb_enabled': False, 'report_enabled': False,
+        'abuseipdb_enabled': False, 'report_enabled': False,
         'min_bans': 2, 'window_hours': 24, 'cooldown_hours': 24,
         'sender': cfg['sender'], 'recipient': cfg['recipient'],
-        'subject': 'Repeated suspicious activity from {ip} — Fail2ban evidence',
-        'message': 'Hello Abuse Team,\n\nPlease review the observations and supporting evidence below.',
     }
     # Exclusive creation preserves saved settings when workers start together.
     try:

@@ -1,6 +1,6 @@
 # Validation
 
-36 tests automatiques réussissent sur Linux/Python 3.12 et macOS/Python 3.9 :
+38 tests automatiques réussissent sur Linux/Python 3.12 et macOS/Python 3.9 :
 sessions, CSRF, origine, restrictions réseau, changement de mot de passe,
 limitation des tentatives, langues, confidentialité des preuves, installation
 sans écrasement, connexion persistante, conflits de révision, consultation
@@ -11,7 +11,7 @@ sur un Fail2ban existant avec trois jails actives. Le mode natif a été testé 
 un vrai Fail2ban 1.1.0 isolé : état, inventaire, validation, sauvegarde,
 rechargement, restauration, tableau de bord et ban/déban avec action fictive.
 Ce test n’avait ni réseau ni accès au pare-feu de l’hôte. Aucun mail réel ou
-signalement abuse n’a été envoyé par ces tests. L’interface française et
+signalement API n’a été envoyé par ces tests. L’interface française et
 anglaise et l’alignement des champs ont été vérifiés dans le navigateur.
 
 Ces essais ne couvrent pas plusieurs distributions ou architectures. Le client

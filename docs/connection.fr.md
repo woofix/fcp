@@ -69,7 +69,7 @@ ce processus sous un compte dédié. Définir au minimum les chemins persistants
 - `FCP_CONNECTION_FILE=/var/lib/fcp/connection.json`
 - `FCP_AUTOMATION_FILE=/var/lib/fcp/automation.json`
 - `FCP_DATABASE=/var/lib/fcp/fcp.sqlite3`
-- `FCP_ABUSE_SETTINGS=/var/lib/fcp/abuse-settings.sqlite3`
+- `FCP_WEBHOOK_SETTINGS=/var/lib/fcp/webhook-settings.sqlite3`
 - `FCP_CONFIG=/etc/fcp/config.json`
 
 Préparer ces dossiers avec les droits du compte FCP. L’authentification conserve
@@ -81,7 +81,7 @@ nécessitent leur propre configuration ; elles ne sont pas installées par ce me
 
 ## Automatisations
 
-Les scripts d’envoi abuse et les planificateurs externes gardent leur propre
+Les scripts AbuseIPDB et les planificateurs externes gardent leur propre
 configuration. Ce formulaire change la cible de l’administration web, pas celle
 d’un service externe. Sur Ramsès, les timers existants et leurs protections
 contre les doublons sont conservés. Aucun transfert automatique des historiques
