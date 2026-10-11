@@ -108,7 +108,7 @@ class PortabilityTests(unittest.TestCase):
             return subprocess.CompletedProcess(args,0,output,'')
         with patch('subprocess.run',side_effect=docker):
             html=ui.dashboard.__wrapped__()
-        self.assertIn('Map Monde',html)
+        self.assertIn('Carte mondiale',html)
         self.assertTrue(commands)
         for args in commands:
             if args[0]=='docker':self.assertIn('isolated-f2b',args)

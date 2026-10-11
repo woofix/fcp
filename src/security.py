@@ -14,6 +14,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, InvalidHashError
 from flask import request, redirect, g, render_template_string, abort, jsonify
 import fail2ban_connection as f2b
+from navigation import NAVIGATION
 
 COOKIE = '__Host-fcp'
 HASHER = PasswordHasher()
@@ -26,20 +27,12 @@ def digest(value):
 
 PAGE = '''<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>FCP · {{ title }}</title>
 <link rel="stylesheet" href="/static/theme.css"><link rel="stylesheet" href="/static/application.css?v=connection-form-2">
-<body class="{% if login %}login-page{% else %}with-navigation{% endif %}">{% if not login %}<aside class="display-controls" aria-label="Navigation principale"><nav class="tabs">
-<a class="application-navigation" href="/?section=overview">Vue d’ensemble</a>
-<a class="application-navigation" href="/?section=administration">Configuration</a>
-<a class="application-navigation" href="/?section=detections">Détections</a>
-<a class="application-navigation" href="/?section=history">Historique</a>
-<a class="application-navigation" href="/?section=requests">Requêtes HTTP</a>
-<a class="application-navigation" href="/?section=map">🌐 Map Monde</a>
-<a class="application-navigation" href="/application" aria-current="page">Administration de l’application</a>
-</nav></aside>{% endif %}<header><h1>FCP · {{ title }}</h1>{% if not login %}<a href="/">← Tableau de bord</a>{% endif %}</header><main class="application-layout{% if login %} login-layout{% endif %}">{% if message %}<p class="message card app-wide" role="status">{{ message }}</p>{% endif %}
+<body class="{% if login %}login-page{% else %}with-navigation{% endif %}">{% if not login %}__NAVIGATION__{% endif %}<header><h1>FCP · {{ title }}</h1>{% if not login %}<a href="/">← Tableau de bord</a>{% endif %}</header><main class="application-layout{% if login %} login-layout{% endif %}">{% if message %}<p class="message card app-wide" role="status">{{ message }}</p>{% endif %}
 {% macro fields() %}<input type="hidden" name="csrf" value="{{ csrf }}">{% endmacro %}
 {% if login %}<section class="card"><form method="post">{{ fields() }}<label>Identifiant<input name="username" autocomplete="username" required maxlength="100"></label><label>Mot de passe<input type="password" name="password" autocomplete="current-password" required maxlength="256"></label><button>Se connecter</button></form><p class="muted">Session : 30 minutes d’inactivité, 8 heures maximum.</p><p><a href="/language?lang=fr&next=/login">Français</a> · <a href="/language?lang=en&next=/login">English</a></p></section>
 {% else %}<p class="card app-wide app-status">{{ transport }} · Mot de passe Argon2id · Sessions révocables</p>
-<section class="card app-wide"><h2>Langue</h2><a href="/language?lang=fr&next=/application">Français</a> · <a href="/language?lang=en&next=/application">English</a></section>
-<section class="card app-wide" id="fail2ban-connection"><h2>Connexion à Fail2ban</h2>
+<nav class="section-tabs app-wide" aria-label="Rubriques des réglages"><button type="button" data-setting="general">Général</button><button type="button" data-setting="connection">Connexion Fail2ban</button><button type="button" data-setting="security">Sécurité</button></nav><section class="card app-wide" data-settings-panel="general"><h2>Langue</h2><a href="/language?lang=fr&next=/application">Français</a> · <a href="/language?lang=en&next=/application">English</a></section>
+<section class="card app-wide" id="fail2ban-connection" data-settings-panel="connection"><h2>Connexion à Fail2ban</h2>
 <p>Connexion active : <strong>{{ 'Docker sur cette machine' if connection.mode == 'docker' else 'Installation Linux native' }}</strong>{% if connection.read_only %} · Consultation uniquement{% endif %}.</p>
 <p>Choisis comment FCP accède à Fail2ban. Les règles et les bannissements existants sont conservés.</p>
 <form method="post">{{ fields() }}<input type="hidden" name="revision" value="{{ connection_revision }}">
@@ -58,9 +51,14 @@ PAGE = '''<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewp
 <p class="muted">L’enregistrement vérifie à nouveau la connexion. En cas d’échec, le mode actuel est conservé. Le démarrage et l’arrêt d’un service Linux natif se font sur son hôte lorsque FCP est conteneurisé. Les automatisations externes ont leur propre connexion et ne sont pas déplacées par ce formulaire.</p>
 <script>function connectionFields(){const native=document.getElementById('connection-mode').value==='native';document.getElementById('connection-native').hidden=!native;document.getElementById('connection-container-label').hidden=native;}document.getElementById('connection-mode').addEventListener('change',connectionFields);connectionFields();</script>
 </section>
-<section class="card"><h2>Mot de passe</h2><form method="post">{{ fields() }}<input type="hidden" name="action" value="password"><label>Mot de passe actuel<input type="password" name="current" autocomplete="current-password" required maxlength="256"></label><label>Nouveau mot de passe (20 caractères minimum)<input type="password" name="password" autocomplete="new-password" required minlength="20" maxlength="256"></label><label>Confirmer le nouveau mot de passe<input type="password" name="confirmation" autocomplete="new-password" required maxlength="256"></label><button>Modifier le mot de passe</button></form><p>Toutes les sessions seront fermées.</p></section>
-<section class="card"><h2>Sessions</h2><form method="post">{{ fields() }}<input type="hidden" name="action" value="revoke"><button>Fermer les autres sessions</button></form><form action="/logout" method="post">{{ fields() }}<button>Déconnexion</button></form></section>
-<section class="card"><h2>Journal de sécurité</h2><table>{% for event in events %}<tr><td>{{ event[0] }}</td><td>{{ event[1] }}</td><td>{{ event[2] }}</td></tr>{% endfor %}</table></section>{% endif %}</main></body></html>'''
+<section class="card" data-settings-panel="security"><h2>Mot de passe</h2><form method="post">{{ fields() }}<input type="hidden" name="action" value="password"><label>Mot de passe actuel<input type="password" name="current" autocomplete="current-password" required maxlength="256"></label><label>Nouveau mot de passe (20 caractères minimum)<input type="password" name="password" autocomplete="new-password" required minlength="20" maxlength="256"></label><label>Confirmer le nouveau mot de passe<input type="password" name="confirmation" autocomplete="new-password" required maxlength="256"></label><button>Modifier le mot de passe</button></form><p>Toutes les sessions seront fermées.</p></section>
+<section class="card" data-settings-panel="security"><h2>Sessions</h2><form method="post">{{ fields() }}<input type="hidden" name="action" value="revoke"><button>Fermer les autres sessions</button></form><form action="/logout" method="post">{{ fields() }}<button>Déconnexion</button></form></section>
+<section class="card" data-settings-panel="security"><h2>Journal de sécurité</h2><table>{% for event in events %}<tr><td>{{ event[0] }}</td><td>{{ event[1] }}</td><td>{{ event[2] }}</td></tr>{% endfor %}</table></section>{% endif %}</main>{% if not login %}<script>
+let settingTab=new URL(location.href).searchParams.get('tab')||sessionStorage.getItem('fcp-setting-tab')||'general';
+{% if connection_result or draft != connection %}settingTab='connection';{% endif %}
+function showSetting(name){if(!['general','connection','security'].includes(name))name='general';document.querySelectorAll('[data-settings-panel]').forEach(p=>p.hidden=p.dataset.settingsPanel!==name);document.querySelectorAll('[data-setting]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.setting===name)));sessionStorage.setItem('fcp-setting-tab',name);}
+document.querySelectorAll('[data-setting]').forEach(b=>b.onclick=()=>showSetting(b.dataset.setting));showSetting(settingTab);document.querySelector('[data-main="settings"]').setAttribute('aria-current','page');
+</script>{% endif %}</body></html>'''.replace('__NAVIGATION__',NAVIGATION)
 
 def install_auth(app):
     path = Path(os.environ.get('FCP_AUTH_DATABASE', '/app/data/auth.sqlite3'))
@@ -188,7 +186,7 @@ def install_auth(app):
             admin=db.execute('SELECT * FROM administrator').fetchone()
             events=[(time.strftime('%Y-%m-%d %H:%M:%S UTC',time.gmtime(r['at'])),r['event'],r['ip']) for r in db.execute('SELECT * FROM audit ORDER BY rowid DESC LIMIT 30')]
         connection=f2b.read() if not login else {'settings':f2b.defaults(),'revision':''}
-        return render_template_string(PAGE,connection=connection['settings'],connection_revision=connection['revision'],draft=draft or connection['settings'],connection_result=connection_result,title='Connexion' if login else 'Administration de l’application',login=login,message=message,csrf=g.auth['csrf'],transport='HTTP local : échanges non chiffrés' if allow_http else 'Connexion HTTPS',events=events)
+        return render_template_string(PAGE,connection=connection['settings'],connection_revision=connection['revision'],draft=draft or connection['settings'],connection_result=connection_result,title='Connexion' if login else 'Réglages',login=login,message=message,csrf=g.auth['csrf'],transport='HTTP local : échanges non chiffrés' if allow_http else 'Connexion HTTPS',events=events)
 
     @app.route('/application',methods=['GET','POST'])
     def fcp_application():
