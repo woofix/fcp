@@ -1,6 +1,6 @@
 # Fail2ban connection
 
-Use **Application administration → Fail2ban connection** to select local Docker
+Use **Settings → Fail2ban connection** to select local Docker
 or a local native Linux installation. Path detection and connection tests do
 not change Fail2ban. Tests check daemon response, jail visibility, configuration
 permissions and validation, and log access. Saving tests again; unreachable

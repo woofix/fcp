@@ -21,3 +21,5 @@ Les planificateurs externes gardent leur configuration indépendante ; changer
 la connexion web ne les déplace pas. L’administration distante, plusieurs
 comptes administrateurs et les notifications webhook automatiques ne sont pas
 implémentés. Vérifier GitHub Actions pour chaque commit publié.
+
+Le regroupement du menu a été vérifié dans un aperçu navigateur isolé : Bannissements ouvre Liste, Carte mondiale et Historique ; Activité, Protections et Réglages ouvrent leurs sous-menus à gauche. Le filtre de recherche a été conservé entre les vues des bannissements. L’image mise à jour a été installée sur le serveur de test et déclarée saine ; les données Fail2ban existantes restaient lisibles. Les contrôles navigateur utilisaient des données de test isolées, sans modifier les bans ni les identifiants réels.

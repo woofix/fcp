@@ -25,3 +25,5 @@ docker exec -it fcp python /app/automation/reset-admin.py
 
 
 La connexion utilise un identifiant et un mot de passe. La double authentification n’est pas proposée dans cette version.
+
+Les commandes du compte sont dans **Réglages → Sécurité** : changement du mot de passe, fermeture des sessions, déconnexion et journal de sécurité. La langue est dans **Réglages → Général**, et le connecteur dans **Réglages → Connexion Fail2ban**. Voir le [guide d’utilisation](usage.fr.md).

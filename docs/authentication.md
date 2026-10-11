@@ -26,3 +26,5 @@ docker exec -it fcp python /app/automation/reset-admin.py
 Back up authentication state securely. Restoring an old authentication database may restore old sessions; use local recovery to revoke them afterwards.
 
 Sign in using the username and password. Two-factor authentication is not available in this version.
+
+Account controls are in **Settings → Security**: password change, session revocation, sign-out and security log. Language is in **Settings → General**; the Fail2ban connector is in **Settings → Fail2ban connection**. See the [user guide](usage.md).

@@ -1,6 +1,6 @@
 # Connexion à Fail2ban
 
-Dans **Administration de l’application → Connexion à Fail2ban**, choisir Docker
+Dans **Réglages → Connexion Fail2ban**, choisir Docker
 local ou Linux natif local. La détection propose des chemins accessibles depuis
 FCP. Tester contrôle la réponse du service, les jails, les droits sur la
 configuration, sa validation et la lecture des journaux. Aucun ban, rechargement

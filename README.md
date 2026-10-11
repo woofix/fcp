@@ -11,7 +11,7 @@ Requires Linux, Docker Engine, Docker Compose and an existing Fail2ban
 container with `fail2ban-client`, `fail2ban-regex`, Python 3 and `date`.
 Persistent configuration editing targets crazymax/fail2ban paths:
 `/data/{jail.d,filter.d,action.d}` and `/etc/fail2ban`. Validate other images
-before editing their configuration. Native Linux Fail2ban is also supported through **Application administration →
+before editing their configuration. Native Linux Fail2ban is also supported through **Settings →
 Fail2ban connection**, with detection, connection tests and read-only access.
 See [Connection modes](docs/connection.md), including running FCP without Docker.
 Remote servers are not supported. FCP does not install Fail2ban or create firewall rules.
@@ -37,9 +37,30 @@ Use an SSH tunnel or an HTTPS reverse proxy for remote access. All application
 routes require authentication; sensitive operations also require the existing
 CSRF token. See [Security](SECURITY.md).
 
+## Navigation
+
+The left sidebar stays visible throughout the application. Selecting a section
+opens its submenu; the selected view is highlighted.
+
+| Section | Views and settings |
+| --- | --- |
+| Dashboard | Service status, protection counters, recent activity |
+| Bans | List, World map, History |
+| Activity | Detections, HTTP requests, Fail2ban log |
+| Protections | Jails, Filters and actions, Backups, Service, Expert |
+| Automations | Optional AbuseIPDB reporting and daily summary |
+| Settings | General, Fail2ban connection, Security |
+
+List, World map and History share protection, country, status and search
+filters when switching views. The map is inside **Bans** and has no separate
+sidebar entry. Password changes, session management and the security log are
+in **Settings → Security**.
+
+See the [user guide](docs/usage.md) for daily use and safe update instructions.
+
 ## Languages
 
-Choose **Français** or **English** using the language selector. The preference
+Choose **Français** or **English** in **Settings → General**. The preference
 is stored in a browser cookie for one year and applies to the dashboard,
 configuration, map, dialogs and application messages. Technical logs,
 configuration files, saved report contents and operator-provided values retain

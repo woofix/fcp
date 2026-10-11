@@ -21,3 +21,5 @@ are not automatically provisioned. External report schedulers retain their
 independent configuration; changing the web connection does not migrate them.
 Remote administration, multiple administrator accounts and automatic webhook
 delivery are not implemented. Verify GitHub Actions for each published commit.
+
+Sidebar regrouping was checked in an isolated browser preview: Bans exposes List, World map and History; Activity, Protections and Settings expose their own sidebar submenus. Switching ban views preserved the search filter. The updated image was deployed on the test host and reported healthy; existing Fail2ban data remained readable. Browser checks used isolated test data, without changing live bans or credentials.
